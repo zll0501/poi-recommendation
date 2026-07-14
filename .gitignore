@@ -1,0 +1,47 @@
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Local configuration and secrets
+.env
+*.local.yaml
+
+# Raw and processed data
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Model checkpoints
+results/checkpoints/*
+!results/checkpoints/.gitkeep
+*.pt
+*.pth
+*.ckpt
+
+# Generated experiment results
+results/predictions/*
+!results/predictions/.gitkeep
+results/metrics/*
+!results/metrics/.gitkeep
+results/figures/*
+!results/figures/.gitkeep
+results/logs/*
+!results/logs/.gitkeep
+
+# Temporary files
+*.tmp
+*.log
+.DS_Store
+Thumbs.db

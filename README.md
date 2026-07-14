@@ -38,7 +38,7 @@ poi-recommendation/
 将Foursquare NYC原始数据放入：
 
 ```text
-data/raw/dataset_TSMC2014_NYC.txt
+data/raw/dataset_TSMC2014_NYC.csv
 ```
 
 原始数据、处理后数据、模型权重和自动生成的实验结果默认不会提交到GitHub。
@@ -56,6 +56,30 @@ pip install -r requirements.txt
 ```bash
 python -m src.preprocess --config configs/data.yaml
 ```
+
+当前预处理流程包括：
+
+- 校验并标准化8个原始字段；
+- 将UTC时间结合每条记录的时区偏移转换为当地时间；
+- 生成小时、星期、周末、时间段及周期时间特征；
+- 删除完全重复记录；
+- 删除同一用户同一时间的冲突签到组；
+- 合并10分钟内连续发生的相同POI签到；
+- 迭代保留签到不少于10次的用户和访问不少于5次的POI；
+- 保存标准化数据、清洗数据、审计报告和清洗前后统计。
+
+生成文件位于 `data/processed/`：
+
+```text
+checkins_standardized.csv
+checkins_cleaned.csv
+audit_report.json
+audit_report.md
+cleaning_report.json
+cleaning_report.md
+```
+
+这些文件由程序自动生成，因此不会提交到GitHub。其他成员可以使用相同配置在本地复现。
 
 ## 运行实验
 

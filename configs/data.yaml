@@ -1,0 +1,61 @@
+dataset:
+  name: Foursquare NYC (TSMC2014)
+  input_path: data/raw/dataset_TSMC2014_NYC.csv
+  encoding: utf-8
+  delimiter: ","
+
+columns:
+  userId: user_id
+  venueId: poi_id
+  venueCategoryId: category_id
+  venueCategory: category_name
+  latitude: latitude
+  longitude: longitude
+  timezoneOffset: timezone_offset_minutes
+  utcTimestamp: utc_time_raw
+
+time:
+  utc_format: "%a %b %d %H:%M:%S %z %Y"
+  slots:
+    - name: night
+      start_hour: 0
+      end_hour: 6
+    - name: morning
+      start_hour: 6
+      end_hour: 12
+    - name: afternoon
+      start_hour: 12
+      end_hour: 18
+    - name: evening
+      start_hour: 18
+      end_hour: 24
+
+audit:
+  coordinate_round_decimals: 5
+  valid_timezone_offset_min: -840
+  valid_timezone_offset_max: 840
+
+output:
+  directory: data/processed
+  standardized_file: checkins_standardized.csv
+  audit_json: audit_report.json
+  audit_markdown: audit_report.md
+  cleaned_file: checkins_cleaned.csv
+  cleaning_json: cleaning_report.json
+  cleaning_markdown: cleaning_report.md
+
+cleaning:
+  remove_exact_duplicates: true
+  simultaneous_conflict_strategy: drop_group
+  merge_consecutive_same_poi: true
+  consecutive_same_poi_minutes: 10
+
+filtering:
+  min_user_checkins: 10
+  min_poi_visits: 5
+  iterative: true
+
+split:
+  method: leave_one_out
+  validation_events_per_user: 1
+  test_events_per_user: 1

@@ -133,6 +133,16 @@ event_id,rank,poi_idx
 - `MRR@10`：真实POI排名倒数的平均值；
 - `Coverage`：全部目标中“训练已知用户且训练已知POI”的比例。
 
+运行时间感知热门基线（仅使用训练集内各时间段的POI频次，稀疏时间段按
+Global Popular补齐）：
+
+```powershell
+python -m experiments.run_time_popular --config configs/time_popular.yaml
+```
+
+结果写入 `results/metrics/time_popular.json`，同时包含 night、morning、
+afternoon、evening 四个时间段的独立测试结果。
+
 ```python
 from src.evaluator import evaluate_next_poi
 

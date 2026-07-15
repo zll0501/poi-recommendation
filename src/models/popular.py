@@ -1,4 +1,4 @@
-"""Deterministic global-popularity baseline for next-POI recommendation."""
+"""Deterministic popularity baselines for next-POI recommendation."""
 
 from __future__ import annotations
 
@@ -106,5 +106,180 @@ class GlobalPopular(BaseRecommender):
         if not ranking or set(ranking) != set(counts):
             raise ValueError("invalid GlobalPopular model artifact")
         self.ranking_ = ranking
+        self.visit_counts_ = counts
+        return self
+
+
+class TimePopular(BaseRecommender):
+    """Rank POIs within each query-time bucket with a global fallback.
+
+    Every bucket ranking contains the complete train-POI universe: POIs observed
+    in that bucket are ordered by bucket count, then unseen POIs follow the
+    global popularity order. This keeps the candidate protocol identical to
+    GlobalPopular and guarantees enough recommendations for sparse buckets.
+    """
+
+    def __init__(self, time_column: str = "time_slot") -> None:
+        if not isinstance(time_column, str) or not time_column.strip():
+            raise ValueError("time_column must be a non-empty string")
+        self.time_column = time_column
+        self.global_model_: GlobalPopular | None = None
+        self.rankings_: dict[str, tuple[int, ...]] | None = None
+        self.visit_counts_: dict[str, dict[int, int]] | None = None
+
+    @property
+    def is_fitted(self) -> bool:
+        return (
+            self.global_model_ is not None
+            and self.global_model_.is_fitted
+            and self.rankings_ is not None
+            and self.visit_counts_ is not None
+        )
+
+    def fit(
+        self,
+        train_data: pd.DataFrame,
+        valid_data: pd.DataFrame | None = None,
+    ) -> "TimePopular":
+        """Fit all counts on training events only."""
+        del valid_data
+        required = {"poi_idx", self.time_column}
+        missing = sorted(required.difference(train_data.columns))
+        if missing:
+            raise ValueError(f"train_data is missing columns: {missing}")
+        if train_data.empty:
+            raise ValueError("train_data cannot be empty")
+        if train_data[self.time_column].isna().any():
+            raise ValueError(f"train_data.{self.time_column} cannot contain missing values")
+
+        global_model = GlobalPopular().fit(train_data)
+        global_ranking = global_model.ranking_
+        assert global_ranking is not None
+        rankings: dict[str, tuple[int, ...]] = {}
+        slot_counts: dict[str, dict[int, int]] = {}
+
+        working = train_data[["poi_idx", self.time_column]].copy()
+        working[self.time_column] = working[self.time_column].astype(str)
+        for slot, group in working.groupby(self.time_column, sort=True, observed=True):
+            poi_ids = pd.to_numeric(group["poi_idx"], errors="coerce")
+            if poi_ids.isna().any() or (poi_ids % 1 != 0).any():
+                raise ValueError("train_data.poi_idx must contain integers")
+            counts = {
+                int(poi): int(count)
+                for poi, count in poi_ids.astype("int64").value_counts().items()
+            }
+            observed = sorted(counts, key=lambda poi: (-counts[poi], poi))
+            observed_set = set(observed)
+            fallback = [poi for poi in global_ranking if poi not in observed_set]
+            rankings[str(slot)] = tuple(observed + fallback)
+            slot_counts[str(slot)] = counts
+
+        self.global_model_ = global_model
+        self.rankings_ = rankings
+        self.visit_counts_ = slot_counts
+        return self
+
+    def recommend(self, test_data: pd.DataFrame, top_k: int = 10) -> pd.DataFrame:
+        """Recommend from the matching time bucket, falling back globally."""
+        if not self.is_fitted:
+            raise RuntimeError("TimePopular must be fitted before recommendation")
+        if not isinstance(top_k, int) or isinstance(top_k, bool) or top_k < 1:
+            raise ValueError("top_k must be a positive integer")
+        required = {"event_id", self.time_column}
+        missing = sorted(required.difference(test_data.columns))
+        if missing:
+            raise ValueError(f"test_data is missing columns: {missing}")
+        if test_data["event_id"].duplicated().any():
+            raise ValueError("test_data.event_id values must be unique")
+        if test_data[self.time_column].isna().any():
+            raise ValueError(f"test_data.{self.time_column} cannot contain missing values")
+
+        assert self.global_model_ is not None
+        assert self.global_model_.ranking_ is not None
+        assert self.rankings_ is not None
+        if top_k > len(self.global_model_.ranking_):
+            raise ValueError("top_k cannot exceed the number of train POIs")
+        recommendations = {
+            int(row.event_id): self.rankings_.get(
+                str(getattr(row, self.time_column)), self.global_model_.ranking_
+            )[:top_k]
+            for row in test_data.itertuples(index=False)
+        }
+        return recommendations_to_frame(recommendations)
+
+    def ranking_frame(self) -> pd.DataFrame:
+        """Return all time-bucket rankings, including global fallback rows."""
+        if not self.is_fitted:
+            raise RuntimeError("TimePopular must be fitted before exporting ranking")
+        assert self.rankings_ is not None
+        assert self.visit_counts_ is not None
+        rows = []
+        for slot, ranking in sorted(self.rankings_.items()):
+            counts = self.visit_counts_[slot]
+            rows.extend(
+                {
+                    "time_slot": slot,
+                    "rank": rank,
+                    "poi_idx": poi,
+                    "visit_count": counts.get(poi, 0),
+                    "is_global_fallback": poi not in counts,
+                }
+                for rank, poi in enumerate(ranking, start=1)
+            )
+        return pd.DataFrame(rows)
+
+    def save(self, path: str | Path) -> None:
+        if not self.is_fitted:
+            raise RuntimeError("TimePopular must be fitted before saving")
+        assert self.global_model_ is not None
+        assert self.global_model_.ranking_ is not None
+        assert self.global_model_.visit_counts_ is not None
+        assert self.rankings_ is not None
+        assert self.visit_counts_ is not None
+        output_path = Path(path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        payload: dict[str, Any] = {
+            "model": "TimePopular",
+            "time_column": self.time_column,
+            "global_ranking": list(self.global_model_.ranking_),
+            "global_visit_counts": {
+                str(k): v for k, v in self.global_model_.visit_counts_.items()
+            },
+            "rankings": {slot: list(values) for slot, values in self.rankings_.items()},
+            "visit_counts": {
+                slot: {str(k): v for k, v in counts.items()}
+                for slot, counts in self.visit_counts_.items()
+            },
+        }
+        output_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+    def load(self, path: str | Path) -> "TimePopular":
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        if payload.get("model") != "TimePopular":
+            raise ValueError("model file is not a TimePopular artifact")
+        global_model = GlobalPopular()
+        global_model.ranking_ = tuple(int(poi) for poi in payload["global_ranking"])
+        global_model.visit_counts_ = {
+            int(poi): int(count)
+            for poi, count in payload["global_visit_counts"].items()
+        }
+        rankings = {
+            str(slot): tuple(int(poi) for poi in values)
+            for slot, values in payload["rankings"].items()
+        }
+        counts = {
+            str(slot): {int(poi): int(count) for poi, count in values.items()}
+            for slot, values in payload["visit_counts"].items()
+        }
+        if not global_model.is_fitted or not rankings:
+            raise ValueError("invalid TimePopular model artifact")
+        candidate_set = set(global_model.ranking_)
+        if any(set(ranking) != candidate_set for ranking in rankings.values()):
+            raise ValueError("time rankings must contain the global candidate universe")
+        self.time_column = str(payload["time_column"])
+        self.global_model_ = global_model
+        self.rankings_ = rankings
         self.visit_counts_ = counts
         return self

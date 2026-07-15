@@ -1,0 +1,24 @@
+# 基础 GRU 序列推荐模型配置
+model:
+  name: gru
+  embedding_dim: 128
+  hidden_dim: 128
+  num_layers: 1
+  dropout: 0.2
+
+# 历史序列配置
+data:
+  max_history: 20
+
+# 模型训练配置
+training:
+  batch_size: 128
+  epochs: 50
+  learning_rate: 0.001
+  weight_decay: 0.0001
+
+# 推荐结果评价配置
+evaluation:
+  top_k:
+    - 5
+    - 10

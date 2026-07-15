@@ -149,3 +149,20 @@ metrics = evaluate_next_poi(
 评价器会自动排除冷启动目标，并拒绝缺失事件、重复POI、非法排名和候选集外POI，避免不同模型使用不一致的评价范围。
 
 统一参数保存在 `configs/evaluation.yaml`。由于下一POI任务包含真实的重复访问行为，默认不排除用户历史访问过的POI。
+
+## Global Popular基线
+
+Global Popular仅使用训练集签到次数对POI排序，访问次数相同时按 `poi_idx` 升序确定结果，不使用用户、验证集或测试集信息：
+
+```bash
+python -m experiments.run_popular --config configs/global_popular.yaml
+```
+
+本地生成但不提交Git的实验产物包括：
+
+```text
+results/predictions/global_popular_test.csv
+results/metrics/global_popular.json
+results/metrics/global_popular_ranking.csv
+results/checkpoints/global_popular.json
+```

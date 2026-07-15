@@ -16,6 +16,10 @@ columns:
 
 time:
   utc_format: "%a %b %d %H:%M:%S %z %Y"
+  local_timezone: America/New_York
+  expected_utc_offsets_minutes:
+    - -300
+    - -240
   slots:
     - name: night
       start_hour: 0
@@ -37,12 +41,25 @@ audit:
 
 output:
   directory: data/processed
-  standardized_file: checkins_standardized.csv
   audit_json: audit_report.json
   audit_markdown: audit_report.md
   cleaned_file: checkins_cleaned.csv
   cleaning_json: cleaning_report.json
   cleaning_markdown: cleaning_report.md
+  train_file: train.csv
+  validation_file: valid.csv
+  test_file: test.csv
+  split_json: split_report.json
+  split_markdown: split_report.md
+  encoded_train_file: train_encoded.csv
+  encoded_validation_file: valid_encoded.csv
+  encoded_test_file: test_encoded.csv
+  mappings_file: id_mappings.json
+  poi_metadata_file: poi_metadata.csv
+  encoding_json: encoding_report.json
+  encoding_markdown: encoding_report.md
+  data_profile_json: data_profile.json
+  data_profile_markdown: data_profile.md
 
 cleaning:
   remove_exact_duplicates: true
@@ -56,6 +73,35 @@ filtering:
   iterative: true
 
 split:
-  method: leave_one_out
-  validation_events_per_user: 1
-  test_events_per_user: 1
+  method: global_chronological
+  train_ratio: 0.8
+  validation_ratio: 0.1
+  test_ratio: 0.1
+  timestamp_column: utc_time
+  # Time Popular/Time-GRU receive the recommendation request timestamp.
+  # The target location and all future events remain unknown.
+  query_time_known: true
+  candidate_scope: train_pois
+  random_shuffle: false
+
+encoding:
+  fit_on: train
+  pad_id: 0
+  unknown_id: 1
+  normal_id_start: 2
+  vocabularies:
+    user_id: user_idx
+    poi_id: poi_idx
+    category_id: category_idx
+
+profiling:
+  coordinate_round_decimals: 5
+  coordinate_tolerance_m: 100
+  expected_timezone_offsets_minutes:
+    - -300
+    - -240
+  suspicious_speed_kmh: 300
+  popularity_top_fractions:
+    - 0.01
+    - 0.05
+    - 0.10

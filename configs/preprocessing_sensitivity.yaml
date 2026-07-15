@@ -1,0 +1,49 @@
+frequency_variants:
+  - name: freq_u10_p3
+    min_user_checkins: 10
+    min_poi_visits: 3
+  - name: freq_u10_p5_default
+    min_user_checkins: 10
+    min_poi_visits: 5
+  - name: freq_u20_p5
+    min_user_checkins: 20
+    min_poi_visits: 5
+  - name: freq_u10_p10
+    min_user_checkins: 10
+    min_poi_visits: 10
+  - name: freq_u20_p10_strict
+    min_user_checkins: 20
+    min_poi_visits: 10
+
+merge_variants:
+  - name: merge_off
+    enabled: false
+    minutes: 0
+  - name: merge_5m
+    enabled: true
+    minutes: 5
+  - name: merge_10m_default
+    enabled: true
+    minutes: 10
+  - name: merge_20m
+    enabled: true
+    minutes: 20
+  - name: merge_30m
+    enabled: true
+    minutes: 30
+
+evaluation:
+  top_k:
+    - 1
+    - 5
+    - 10
+  primary_k: 10
+  exclude_unseen_targets: true
+  query_time_column: time_slot
+
+output:
+  metrics_csv: results/metrics/preprocessing_sensitivity.csv
+  metrics_json: results/metrics/preprocessing_sensitivity.json
+  report_markdown: results/metrics/preprocessing_sensitivity.md
+  scale_figure: results/figures/preprocessing_sensitivity_scale.png
+  performance_figure: results/figures/preprocessing_sensitivity_performance.png

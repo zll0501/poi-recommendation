@@ -16,6 +16,8 @@ from src.preprocess import (
 BASE_CONFIG = {
     "time": {
         "utc_format": "%a %b %d %H:%M:%S %z %Y",
+        "local_timezone": "America/New_York",
+        "expected_utc_offsets_minutes": [-300, -240],
         "slots": [
             {"name": "night", "start_hour": 0, "end_hour": 6},
             {"name": "morning", "start_hour": 6, "end_hour": 12},
@@ -75,6 +77,16 @@ def test_invalid_timestamp_becomes_missing() -> None:
     assert pd.isna(result.loc[0, "utc_time"])
     assert pd.isna(result.loc[0, "local_time"])
     assert pd.isna(result.loc[0, "hour"])
+
+
+def test_bad_raw_offset_does_not_corrupt_new_york_local_time() -> None:
+    frame = make_raw_frame().iloc[:1].copy()
+    frame.loc[0, "timezone_offset_minutes"] = 540
+
+    result = standardize_checkins(frame, BASE_CONFIG)
+
+    assert str(result.loc[0, "local_time"]) == "2012-04-03 14:00:09"
+    assert result.loc[0, "timezone_offset_is_expected"] == False
 
 
 def test_time_slots_must_cover_all_hours() -> None:

@@ -125,9 +125,21 @@ def standardize_checkins(
         data["utc_time_raw"], format=utc_format, errors="coerce", utc=True
     )
 
-    offset = pd.to_timedelta(data["timezone_offset_minutes"], unit="m")
-    # Keep local wall-clock time timezone-naive because rows span DST offsets.
-    data["local_time"] = (data["utc_time"] + offset).dt.tz_localize(None)
+    local_timezone = str(config["time"].get("local_timezone", "America/New_York"))
+    # NYC is the dataset's fixed geographic scope. Convert from UTC using the
+    # IANA timezone so daylight saving is handled even when a raw offset is bad.
+    data["local_time"] = (
+        data["utc_time"].dt.tz_convert(local_timezone).dt.tz_localize(None)
+    )
+    expected_offsets = set(
+        int(value)
+        for value in config["time"].get(
+            "expected_utc_offsets_minutes", [-300, -240]
+        )
+    )
+    data["timezone_offset_is_expected"] = data[
+        "timezone_offset_minutes"
+    ].isin(expected_offsets).astype("boolean")
     data["timestamp"] = data["utc_time"].map(
         lambda value: int(value.timestamp()) if pd.notna(value) else pd.NA
     ).astype("Int64")
@@ -566,19 +578,17 @@ def save_outputs(
     cleaning_report: dict[str, Any],
     config: dict[str, Any],
 ) -> dict[str, Path]:
-    """Persist standardized/cleaned data and their audit reports."""
+    """Persist the canonical cleaned table and compact audit reports."""
     output_config = config["output"]
     output_dir = resolve_project_path(output_config["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    standardized_path = output_dir / output_config["standardized_file"]
     audit_json_path = output_dir / output_config["audit_json"]
     audit_markdown_path = output_dir / output_config["audit_markdown"]
     cleaned_path = output_dir / output_config["cleaned_file"]
     cleaning_json_path = output_dir / output_config["cleaning_json"]
     cleaning_markdown_path = output_dir / output_config["cleaning_markdown"]
 
-    standardized.to_csv(standardized_path, index=False, encoding="utf-8")
     with audit_json_path.open("w", encoding="utf-8") as file:
         json.dump(audit_report, file, ensure_ascii=False, indent=2)
     audit_markdown_path.write_text(
@@ -591,7 +601,6 @@ def save_outputs(
         render_cleaning_markdown(cleaning_report), encoding="utf-8"
     )
     return {
-        "standardized": standardized_path,
         "audit_json": audit_json_path,
         "audit_markdown": audit_markdown_path,
         "cleaned": cleaned_path,

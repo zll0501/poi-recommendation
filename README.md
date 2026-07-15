@@ -1,96 +1,116 @@
-# Next POI Recommendation
+# 基于多源数据融合的下一 POI 推荐
 
-《人工智能实训II》下一POI推荐项目。
+本项目使用 Foursquare NYC 签到数据，在统一协议下比较 Global Popular、Time Popular、ItemCF、Markov、GRU、Time-GRU、SASRec 和 Category-SASRec。
 
-## 项目模型
+## 任务定义
 
-- Global Popular
-- Time Popular
-- ItemCF
-- Markov
-- GRU
-- Time-GRU
-- SASRec
-- Category-SASRec
+给定用户在推荐时刻之前的签到历史，以及已知的推荐请求时间，预测下一次访问的 POI。目标 POI 和推荐时刻之后的事件均不可见。
 
-## 小组分工
+- 主协议：按全体签到的 UTC 时间执行全局 80% / 10% / 10% 划分。
+- 训练集用于拟合模型、ID 映射、POI 元数据和全部统计量。
+- 验证集用于调参与早停；测试集只用于最终报告。
+- 所有模型使用训练集 POI 作为相同候选集。
+- 主指标只计算“训练集中已知用户且已知 POI”的闭集样本，同时单独报告覆盖率。
+- Time Popular 和 Time-GRU 可以使用已知请求时间；不能使用目标地点产生的距离等特征。
 
-- 成员1：数据处理、Global Popular、Time Popular
-- 成员2：GRU、Time-GRU
-- 成员3：SASRec、Category-SASRec
-- 成员4：ItemCF、Markov、实验分析与展示平台
+全局时间划分使 Global Popular、Time Popular 和序列模型遵守同一系统时间线，避免使用其他用户的未来签到预测较早事件。
 
-## 项目结构
+## 数据流水线
 
 ```text
-poi-recommendation/
-├── data/          # 原始数据和处理后的数据
-├── src/           # 公共代码和模型实现
-├── configs/       # 数据及模型配置
-├── experiments/   # 实验与消融脚本
-├── results/       # 预测、指标、图表和模型权重
-├── app/           # Streamlit展示平台
-└── tests/         # 自动化测试
+原始签到
+  → 字段与时区标准化
+  → 规则清洗与迭代过滤
+  → 全局时间划分
+  → 仅训练集拟合 ID 和权威 POI 元数据
+  → 统一数据接口
+  → 模型训练与统一评估
 ```
 
-## 数据准备
-
-将Foursquare NYC原始数据放入：
+数据放置位置：
 
 ```text
 data/raw/dataset_TSMC2014_NYC.csv
 ```
 
-原始数据、处理后数据、模型权重和自动生成的实验结果默认不会提交到GitHub。
-
-## 环境安装
-
-建议创建独立Python环境，然后安装依赖：
-
-```bash
-pip install -r requirements.txt
-```
-
-## 数据预处理
+依次运行：
 
 ```bash
 python -m src.preprocess --config configs/data.yaml
+python -m src.split_data --config configs/data.yaml
+python -m src.encode_data --config configs/data.yaml
+python -m src.analysis.data_profile --config configs/data.yaml
+pytest -q
 ```
 
-当前预处理流程包括：
+预处理包含：
 
-- 校验并标准化8个原始字段；
-- 将UTC时间结合每条记录的时区偏移转换为当地时间；
-- 生成小时、星期、周末、时间段及周期时间特征；
+- 统一字段类型、UTC 时间和 `America/New_York` 本地时间；
 - 删除完全重复记录；
-- 删除同一用户同一时间的冲突签到组；
-- 合并10分钟内连续发生的相同POI签到；
-- 迭代保留签到不少于10次的用户和访问不少于5次的POI；
-- 保存标准化数据、清洗数据、审计报告和清洗前后统计。
+- 删除同一用户同一时刻对应多个 POI 的冲突组；
+- 合并 10 分钟内连续相同 POI；
+- 迭代保留签到不少于 10 次的用户和访问不少于 5 次的 POI；
+- 输出清洗前后审计报告。
 
-生成文件位于 `data/processed/`：
+迭代过滤作用于完整语料，用于定义研究对象；这是一项公开的数据集纳入规则，不宣称为训练集拟合步骤。划分后的映射、元数据、模型统计量必须严格只用训练集拟合。
+
+## 最小共享产物
+
+`data/processed/` 中仅保留以下可解释产物：
 
 ```text
-checkins_standardized.csv
-checkins_cleaned.csv
-audit_report.json
-audit_report.md
-cleaning_report.json
-cleaning_report.md
+checkins_cleaned.csv             # 唯一清洗主表
+audit_report.json / .md          # 原始质量审计
+cleaning_report.json / .md       # 清洗过程与参数
+train.csv / valid.csv / test.csv # 全局时间划分
+split_report.json / .md          # 时间边界、覆盖率与一致性检查
+train_encoded.csv
+valid_encoded.csv
+test_encoded.csv                 # 模型统一输入
+id_mappings.json                 # 仅训练集拟合，0=PAD、1=UNK、2起为正常ID
+poi_metadata.csv                 # 训练集拟合的权威类别与中位数坐标
+encoding_report.json / .md
+data_profile.json / .md          # 汇报用的紧凑数据画像
 ```
 
-这些文件由程序自动生成，因此不会提交到GitHub。其他成员可以使用相同配置在本地复现。
+标准化全量表、重复的事件特征表、逐用户/POI画像表和可疑轨迹明细不持久化；需要时由原始数据和代码重新计算。
 
-## 运行实验
+## 统一接口
+
+```python
+from src.datasets import load_data_bundle
+
+data = load_data_bundle("configs/data.yaml")
+train, valid, test = data.train, data.validation, data.test
+candidate_pois = data.candidate_poi_ids
+
+for sample in data.iter_next_poi_samples("test", max_history=50):
+    user = sample.user_idx
+    history = sample.history
+    target = sample.target_poi_idx
+    request_hour = sample.hour
+```
+
+- Popular、ItemCF、Markov 可直接读取三个 DataFrame。
+- GRU、SASRec 使用 `user_sequences()` 或 `iter_next_poi_samples()`。
+- 验证/测试采用滚动历史：每次预测只能看到当前事件之前的真实签到。
+- 未知目标映射为 UNK，默认不进入闭集主指标，但必须进入覆盖率统计。
+
+## 参数敏感性实验
 
 ```bash
-python run_experiment.py --config configs/global_popular.yaml
+python -m experiments.preprocessing_sensitivity \
+  --data-config configs/data.yaml \
+  --experiment-config configs/preprocessing_sensitivity.yaml
 ```
 
-## 协作规则
+该实验复用同一个全局时间划分函数、训练候选集和已知请求时间假设，用于比较过滤阈值与连续签到合并阈值。结果是预处理选择依据，不替代最终模型实验。
 
-- `main`只保存已经检查并可以运行的代码。
-- 每名成员在自己的功能分支开发。
-- 所有模型使用相同的数据划分、候选集合和评价指标。
-- 所有模型输出统一格式的Top-K推荐文件。
-- 通过Pull Request审核后再合并到`main`。
+## 小组分工
+
+- 成员 1：数据处理、Global Popular、Time Popular。
+- 成员 2：GRU、Time-GRU。
+- 成员 3：SASRec、Category-SASRec。
+- 成员 4：ItemCF、Markov、实验分析与平台展示。
+
+所有成员必须使用同一划分、候选集、滚动历史和评价器，不在各自模型脚本中重新切分数据。

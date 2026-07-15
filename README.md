@@ -114,3 +114,38 @@ python -m experiments.preprocessing_sensitivity \
 - 成员 4：ItemCF、Markov、实验分析与平台展示。
 
 所有成员必须使用同一划分、候选集、滚动历史和评价器，不在各自模型脚本中重新切分数据。
+
+## 统一评价接口
+
+每个模型输出相同的长表格式：
+
+```text
+event_id,rank,poi_idx
+10001,1,25
+10001,2,103
+10001,3,8
+```
+
+每个可评价事件必须提交恰好10个互不重复、属于训练候选集的POI。统一评价规则为：
+
+- `HitRate@5/10`：真实下一POI是否出现在前5/10名；
+- `NDCG@5/10`：命中位置越靠前，得分越高；
+- `MRR@10`：真实POI排名倒数的平均值；
+- `Coverage`：全部目标中“训练已知用户且训练已知POI”的比例。
+
+```python
+from src.evaluator import evaluate_next_poi
+
+metrics = evaluate_next_poi(
+    targets=data.test,
+    predictions=prediction_frame,
+    candidate_poi_ids=data.candidate_poi_ids,
+    unknown_id=data.unknown_id,
+    ks=(5, 10),
+    mrr_k=10,
+)
+```
+
+评价器会自动排除冷启动目标，并拒绝缺失事件、重复POI、非法排名和候选集外POI，避免不同模型使用不一致的评价范围。
+
+统一参数保存在 `configs/evaluation.yaml`。由于下一POI任务包含真实的重复访问行为，默认不排除用户历史访问过的POI。

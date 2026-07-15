@@ -1,0 +1,28 @@
+protocol:
+  task: next_poi
+  target_scope: known_user_and_train_poi
+  candidate_scope: train_pois
+  query_time_known: true
+  exclude_seen_pois: false
+
+ranking:
+  top_k:
+    - 5
+    - 10
+  output_k: 10
+  mrr_k: 10
+
+metrics:
+  - HitRate@5
+  - HitRate@10
+  - NDCG@5
+  - NDCG@10
+  - MRR@10
+  - Coverage
+
+prediction_format:
+  layout: long
+  columns:
+    - event_id
+    - rank
+    - poi_idx

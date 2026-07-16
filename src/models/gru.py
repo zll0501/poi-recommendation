@@ -85,8 +85,8 @@ class GRUNetwork(nn.Module):
 class GRURecommender(BaseRecommender):
     """GRU 下一 POI 推荐模型封装。
 
-    模型词表大小由数据接口动态提供，不属于静态配置。训练过程委托给公共
-    ``Trainer``，当前推荐接口仍等待后续推理流程实现。
+    模型词表大小和候选 POI 由数据接口动态提供，不属于静态配置。训练过程
+    委托给公共 ``Trainer``，推理结果按事件编号返回 Top-K POI。
     """
 
     def __init__(
@@ -95,6 +95,7 @@ class GRURecommender(BaseRecommender):
         num_pois: int,
         padding_idx: Optional[int] = 0,
         device: torch.device | str | None = None,
+        candidate_poi_ids: Optional[Iterable[int]] = None,
     ) -> None:
         """使用模型配置和数据接口提供的词表信息初始化推荐器。"""
         self.config = dict(config)
@@ -110,6 +111,21 @@ class GRURecommender(BaseRecommender):
 
         self.num_pois = int(num_pois)
         self.padding_idx = padding_idx
+        self.candidate_poi_ids = tuple(
+            dict.fromkeys(
+                int(poi_id)
+                for poi_id in (
+                    candidate_poi_ids if candidate_poi_ids is not None else ()
+                )
+            )
+        )
+        if any(
+            poi_id < 0 or poi_id >= self.num_pois
+            for poi_id in self.candidate_poi_ids
+        ):
+            raise ValueError("candidate_poi_ids 包含词表范围外的 POI")
+        if self.padding_idx in self.candidate_poi_ids:
+            raise ValueError("candidate_poi_ids 不能包含 PAD")
         self.device = torch.device(
             device
             if device is not None
@@ -152,6 +168,48 @@ class GRURecommender(BaseRecommender):
         )
         return self.training_history
 
-    def recommend(self, test_data: Any, top_k: int = 10) -> Any:
-        """Generate Top-K recommendations; inference is not implemented yet."""
-        raise NotImplementedError("GRU recommendation is not implemented yet")
+    def recommend(
+        self,
+        test_data: Iterable[Any],
+        top_k: int = 10,
+    ) -> dict[int, list[int]]:
+        """为测试事件生成限定在训练候选集中的 Top-K POI。"""
+        if not self.candidate_poi_ids:
+            raise ValueError("测试集推理前必须提供 candidate_poi_ids")
+        if top_k <= 0:
+            raise ValueError("top_k 必须为正整数")
+        if top_k > len(self.candidate_poi_ids):
+            raise ValueError("top_k 不能大于候选 POI 数量")
+
+        self.network.to(self.device)
+        self.network.eval()
+        candidate_mask = torch.zeros(
+            self.num_pois,
+            dtype=torch.bool,
+            device=self.device,
+        )
+        candidate_mask[list(self.candidate_poi_ids)] = True
+        recommendations: dict[int, list[int]] = {}
+
+        with torch.inference_mode():
+            for batch in test_data:
+                if not isinstance(batch, Mapping):
+                    raise TypeError("测试批次必须是包含 history/event_id 的字典")
+                if "history" not in batch or "event_id" not in batch:
+                    raise KeyError("测试批次必须包含 history 和 event_id 字段")
+
+                history = batch["history"].to(self.device)
+                logits = self.network(history)
+                logits = logits.masked_fill(~candidate_mask.unsqueeze(0), -torch.inf)
+                top_poi_ids = torch.topk(logits, k=top_k, dim=1).indices.cpu()
+                event_ids = batch["event_id"].cpu().tolist()
+
+                for event_id, poi_ids in zip(event_ids, top_poi_ids.tolist()):
+                    event_id = int(event_id)
+                    if event_id in recommendations:
+                        raise ValueError(f"测试批次包含重复 event_id：{event_id}")
+                    recommendations[event_id] = [int(poi_id) for poi_id in poi_ids]
+
+        if not recommendations:
+            raise ValueError("test_data 不得为空")
+        return recommendations

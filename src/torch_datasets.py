@@ -22,6 +22,7 @@ class NextPOITorchDataset(Dataset):
         max_history: 每条历史序列的固定长度。
         include_unknown_targets: 是否保留目标 POI 为 UNK 的样本。
         include_unknown_users: 是否保留用户编号为 UNK 的样本。
+        include_metadata: 是否在样本中附带用于测试集评价的 ``event_id``。
     """
 
     def __init__(
@@ -31,6 +32,7 @@ class NextPOITorchDataset(Dataset):
         max_history: int,
         include_unknown_targets: bool = False,
         include_unknown_users: bool = False,
+        include_metadata: bool = False,
     ) -> None:
         if max_history <= 0:
             raise ValueError("max_history 必须为正整数")
@@ -39,6 +41,7 @@ class NextPOITorchDataset(Dataset):
         self.max_history = max_history
         self.padding_idx = data_bundle.pad_id
         self.num_pois = data_bundle.vocabulary_size("poi_id")
+        self.include_metadata = include_metadata
 
         samples = list(
             data_bundle.iter_next_poi_samples(
@@ -60,6 +63,10 @@ class NextPOITorchDataset(Dataset):
             [sample.target_poi_idx for sample in samples],
             dtype=long,
         )
+        self.event_ids = tensor(
+            [sample.event_id for sample in samples],
+            dtype=long,
+        )
 
         if not samples:
             self.histories = self.histories.reshape(0, max_history)
@@ -68,6 +75,12 @@ class NextPOITorchDataset(Dataset):
         """返回当前数据分区中的可用下一 POI 样本数。"""
         return int(self.targets.size(0))
 
-    def __getitem__(self, index: int) -> tuple[Tensor, Tensor]:
-        """返回 ``(history, target)`` 张量，供 DataLoader 自动组批。"""
+    def __getitem__(self, index: int) -> tuple[Tensor, Tensor] | dict[str, Tensor]:
+        """返回训练二元组，或附带事件编号的评价字典。"""
+        if self.include_metadata:
+            return {
+                "history": self.histories[index],
+                "target": self.targets[index],
+                "event_id": self.event_ids[index],
+            }
         return self.histories[index], self.targets[index]

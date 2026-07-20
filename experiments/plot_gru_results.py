@@ -159,6 +159,75 @@ def _plot_grouped_metrics(
     _save_figure(figure, output_path)
 
 
+def _plot_time_information_contribution(
+    gru_result: pd.Series,
+    time_gru_result: pd.Series,
+    output_path: Path,
+) -> None:
+    """对比完整轨迹与“轨迹＋时间”输入，并标注时间信息的相对贡献。"""
+    metrics = list(RANKING_METRICS)
+    gru_scores = [float(gru_result[metric]) for metric in metrics]
+    time_gru_scores = [float(time_gru_result[metric]) for metric in metrics]
+    x_positions = list(range(len(metrics)))
+    bar_width = 0.36
+
+    figure, axis = plt.subplots(figsize=(11, 5.8))
+    gru_bars = axis.bar(
+        [position - bar_width / 2 for position in x_positions],
+        gru_scores,
+        width=bar_width,
+        label="GRU: trajectory",
+        color=COLORS[0],
+    )
+    time_gru_bars = axis.bar(
+        [position + bar_width / 2 for position in x_positions],
+        time_gru_scores,
+        width=bar_width,
+        label="Time-GRU: trajectory + time",
+        color=COLORS[1],
+    )
+
+    axis.bar_label(gru_bars, fmt="%.3f", padding=3, fontsize=8)
+    for bar, gru_score, time_gru_score in zip(
+        time_gru_bars,
+        gru_scores,
+        time_gru_scores,
+    ):
+        relative_change = (
+            (time_gru_score - gru_score) / gru_score * 100
+            if gru_score != 0
+            else 0.0
+        )
+        axis.annotate(
+            f"{time_gru_score:.3f}\n({relative_change:+.1f}%)",
+            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+            xytext=(0, 3),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color=COLORS[1],
+        )
+
+    axis.set_title("Contribution of Time Information to GRU Recommendation")
+    axis.set_xlabel("Evaluation metric")
+    axis.set_ylabel("Score")
+    axis.set_xticks(x_positions, metrics)
+    axis.set_ylim(0, max(gru_scores + time_gru_scores) * 1.22)
+    axis.grid(axis="y", alpha=0.25)
+    axis.legend()
+    axis.text(
+        0.5,
+        -0.14,
+        "Percentage labels show the relative change from GRU to Time-GRU.",
+        transform=axis.transAxes,
+        ha="center",
+        fontsize=9,
+        color="#555555",
+    )
+    _save_figure(figure, output_path)
+
+
 def _plot_sequence_metrics(frame: pd.DataFrame, output_path: Path) -> None:
     """绘制序列长度与主要推荐指标的关系。"""
     ordered = frame.sort_values("max_history", kind="stable")
@@ -231,7 +300,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def run(args: argparse.Namespace) -> list[Path]:
-    """读取实验产物并生成固定的六张图片。"""
+    """读取实验产物并生成固定的七张图片。"""
     output_dir = _project_path(args.output_dir)
     gru_history = _read_json(_project_path(args.gru_history))
     time_gru_history = _read_json(_project_path(args.time_gru_history))
@@ -266,6 +335,7 @@ def run(args: argparse.Namespace) -> list[Path]:
         output_dir / "sequence_length_metrics.png",
         output_dir / "sequence_length_training_time.png",
         output_dir / "final_model_comparison.png",
+        output_dir / "time_information_contribution.png",
     ]
     _plot_loss_curve(gru_history, "GRU Training Curve", output_paths[0])
     _plot_loss_curve(
@@ -293,6 +363,11 @@ def run(args: argparse.Namespace) -> list[Path]:
         RANKING_METRICS,
         "Final GRU Model Comparison",
         output_paths[5],
+    )
+    _plot_time_information_contribution(
+        gru_result.iloc[0],
+        time_gru_result.iloc[0],
+        output_paths[6],
     )
 
     for path in output_paths:

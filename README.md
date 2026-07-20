@@ -65,6 +65,16 @@ python -m src.match_weather --config configs/weather.yaml
 `data/processed/weather_matching_report.json`。匹配以 `event_id` 为唯一键，不会改写
 `train_encoded.csv`、`valid_encoded.csv` 或 `test_encoded.csv`；不使用天气的模型无需修改。
 
+在同一候选集和评价器下比较 Time Popular 与 Time + Weather Popular：
+
+```powershell
+python -m experiments.run_time_weather_popular \
+  --config configs/time_weather_popular.yaml
+```
+
+该实验只在训练集拟合“时间段+天气”热度，按“时间天气 → 时间 → 全局”顺序回退，
+并报告相对 Time Popular 的逐指标差值和分天气结果。
+
 预处理包含：
 
 - 统一字段类型、UTC 时间和 `America/New_York` 本地时间；

@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.models.popular import GlobalPopular, TimePopular
+from src.models.popular import GlobalPopular, TimePopular, TimeWeatherPopular
 
 
 def make_train() -> pd.DataFrame:
@@ -102,3 +102,40 @@ def test_time_popular_save_and_load(tmp_path: Path) -> None:
 def test_time_popular_rejects_missing_time_slot() -> None:
     with pytest.raises(ValueError, match="time_slot"):
         TimePopular().fit(make_train())
+
+
+def make_time_weather_train() -> pd.DataFrame:
+    return pd.DataFrame({
+        "poi_idx": [2, 2, 3, 3, 3, 4, 4],
+        "time_slot": ["morning"] * 7,
+        "weather_group": ["clear", "clear", "clear", "rain", "rain", "rain", "rain"],
+    })
+
+
+def test_time_weather_popular_uses_exact_bucket_and_time_fallback() -> None:
+    model = TimeWeatherPopular(min_bucket_events=1).fit(make_time_weather_train())
+    test = pd.DataFrame({
+        "event_id": [10, 20, 30],
+        "time_slot": ["morning", "morning", "unknown"],
+        "weather_group": ["clear", "unknown", "rain"],
+    })
+    predictions = model.recommend(test, top_k=2)
+    grouped = predictions.groupby("event_id")["poi_idx"].apply(list).to_dict()
+    assert grouped[10] == [2, 3]
+    assert grouped[20] == [3, 2]
+    assert grouped[30] == [3, 2]
+
+
+def test_time_weather_popular_skips_small_bucket() -> None:
+    model = TimeWeatherPopular(min_bucket_events=4).fit(make_time_weather_train())
+    assert ("morning", "clear") not in model.rankings_
+    assert ("morning", "rain") in model.rankings_
+
+
+def test_time_weather_popular_save_and_load(tmp_path: Path) -> None:
+    path = tmp_path / "time_weather.json"
+    original = TimeWeatherPopular(min_bucket_events=1).fit(make_time_weather_train())
+    original.save(path)
+    restored = TimeWeatherPopular().load(path)
+    assert restored.rankings_ == original.rankings_
+    assert restored.min_bucket_events == 1

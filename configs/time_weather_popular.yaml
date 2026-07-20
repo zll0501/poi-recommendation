@@ -1,0 +1,21 @@
+model:
+  name: TimeWeatherPopular
+  top_k: 10
+  fit_on: train
+  time_column: time_slot
+  weather_column: weather_group
+  min_bucket_events: 50
+  fallback_order:
+    - time_weather
+    - time
+    - global
+
+data_config: configs/data.yaml
+weather_config: configs/weather.yaml
+evaluation_config: configs/evaluation.yaml
+
+output:
+  predictions: results/predictions/time_weather_popular_test.csv
+  metrics: results/metrics/time_weather_popular.json
+  ranking: results/metrics/time_weather_popular_rankings.csv
+  model: results/checkpoints/time_weather_popular.json

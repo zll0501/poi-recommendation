@@ -1,0 +1,14 @@
+model:
+  name: GlobalPopular
+  top_k: 10
+  fit_on: train
+  tie_break: poi_idx_ascending
+
+data_config: configs/data.yaml
+evaluation_config: configs/evaluation.yaml
+
+output:
+  predictions: results/predictions/global_popular_test.csv
+  metrics: results/metrics/global_popular.json
+  ranking: results/metrics/global_popular_ranking.csv
+  model: results/checkpoints/global_popular.json

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from copy import deepcopy
 from typing import Any
 
@@ -88,25 +88,56 @@ class SASRecTrainer:
         *,
         epochs: int = 50,
         patience: int | None = None,
-    ) -> dict[str, list[float]]:
-        """训练模型，并在结束时恢复验证损失最低的参数。"""
+        epoch_evaluator: Callable[[int], Mapping[str, float]] | None = None,
+        selection_metric: str = "valid_loss",
+        maximize_selection_metric: bool = False,
+    ) -> dict[str, Any]:
+        """训练模型，并在结束时恢复指定验证指标对应的最佳参数。"""
         if epochs < 1:
             raise ValueError("epochs must be positive")
         if patience is not None and patience < 1:
             raise ValueError("patience must be positive or None")
 
-        history: dict[str, list[float]] = {"train_loss": [], "valid_loss": []}
+        history: dict[str, Any] = {
+            "train_loss": [],
+            "valid_loss": [],
+            "epochs": [],
+        }
         best_state: dict[str, Tensor] | None = None
-        best_valid_loss = float("inf")
+        best_score = float("-inf") if maximize_selection_metric else float("inf")
         stale_epochs = 0
-        for _ in range(epochs):
-            history["train_loss"].append(self.train_one_epoch(train_loader))
+        for epoch_index in range(epochs):
+            epoch_number = epoch_index + 1
+            train_loss = self.train_one_epoch(train_loader)
+            history["train_loss"].append(train_loss)
+            epoch_record: dict[str, float | int] = {
+                "epoch": epoch_number,
+                "train_loss": train_loss,
+            }
             if valid_loader is None:
+                history["epochs"].append(epoch_record)
                 continue
             valid_loss = self.evaluate_loss(valid_loader)
             history["valid_loss"].append(valid_loss)
-            if valid_loss < best_valid_loss:
-                best_valid_loss = valid_loss
+            epoch_record["valid_loss"] = valid_loss
+            if epoch_evaluator is not None:
+                epoch_record.update(
+                    {
+                        key: float(value)
+                        for key, value in epoch_evaluator(epoch_number).items()
+                    }
+                )
+            history["epochs"].append(epoch_record)
+            if selection_metric not in epoch_record:
+                raise KeyError(
+                    f"selection metric {selection_metric!r} is missing from epoch record"
+                )
+            score = float(epoch_record[selection_metric])
+            improved = (
+                score > best_score if maximize_selection_metric else score < best_score
+            )
+            if improved:
+                best_score = score
                 best_state = deepcopy(self.model.state_dict())
                 stale_epochs = 0
             else:

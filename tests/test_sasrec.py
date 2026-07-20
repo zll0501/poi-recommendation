@@ -75,3 +75,72 @@ def test_left_padded_input_is_rejected():
         assert "right-padded" in str(error)
     else:
         raise AssertionError("left-padded input should be rejected")
+
+
+def test_query_time_variant_uses_batch_shaped_context_and_supports_backward():
+    model = SASRec(
+        num_pois=10,
+        max_seq_len=4,
+        hidden_size=8,
+        dropout=0.0,
+        use_query_time=True,
+    )
+    inputs = _inputs()
+    logits = model(
+        poi_sequence=inputs["poi_sequence"],
+        attention_mask=inputs["attention_mask"],
+        query_hour=torch.tensor([8, 20]),
+        query_weekday=torch.tensor([1, 7]),
+        query_time_slot=torch.tensor([2, 4]),
+    )
+    loss = torch.nn.functional.cross_entropy(logits, torch.tensor([4, 7]))
+    loss.backward()
+
+    assert logits.shape == (2, 10)
+    assert model.query_hour_embedding.weight.grad is not None
+    assert model.query_weekday_embedding.weight.grad is not None
+    assert model.query_time_slot_embedding.weight.grad is not None
+
+
+def test_query_time_requires_one_value_per_batch_item():
+    model = SASRec(
+        num_pois=10, max_seq_len=4, hidden_size=8, use_query_time=True
+    )
+    inputs = _inputs()
+
+    try:
+        model(
+            inputs["poi_sequence"],
+            inputs["attention_mask"],
+            query_hour=torch.tensor([[8, 9], [20, 21]]),
+            query_weekday=torch.tensor([1, 7]),
+            query_time_slot=torch.tensor([2, 4]),
+        )
+    except ValueError as error:
+        assert "shape [B]" in str(error)
+    else:
+        raise AssertionError("query time must not be expanded to [B, L]")
+
+
+def test_disabling_query_time_preserves_old_checkpoint_structure_and_output():
+    torch.manual_seed(42)
+    old_style = SASRec(
+        num_pois=10, max_seq_len=4, hidden_size=8, dropout=0.0
+    )
+    compatible = SASRec(
+        num_pois=10,
+        max_seq_len=4,
+        hidden_size=8,
+        dropout=0.0,
+        use_query_time=False,
+    )
+    compatible.load_state_dict(old_style.state_dict(), strict=True)
+    inputs = _inputs()
+
+    old_style.eval()
+    compatible.eval()
+    expected = old_style(inputs["poi_sequence"], inputs["attention_mask"])
+    actual = compatible(inputs["poi_sequence"], inputs["attention_mask"])
+
+    assert not any("query_" in key for key in compatible.state_dict())
+    assert torch.equal(actual, expected)

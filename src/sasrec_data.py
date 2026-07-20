@@ -15,6 +15,14 @@ from src.datasets import POIDataBundle
 
 PartitionName = Literal["train", "validation", "test"]
 
+# 与 configs/data.yaml 中的时间段定义保持一致；0 保留给 PAD。
+TIME_SLOT_TO_IDX = {
+    "night": 1,
+    "morning": 2,
+    "afternoon": 3,
+    "evening": 4,
+}
+
 
 @dataclass(frozen=True)
 class SASRecSample:
@@ -26,7 +34,10 @@ class SASRecSample:
     category_sequence: tuple[int, ...]
     target_poi_idx: int
     target_category_idx: int
-    target_time_idx: int
+    # Query time 是当前推荐请求的上下文，每条样本只有一个值。
+    query_hour: int
+    query_weekday: int
+    query_time_slot: int
     event_id: int
 
 
@@ -118,7 +129,9 @@ class SASRecDataset(Dataset[SASRecSample]):
                         category_sequence=category_sequence,
                         target_poi_idx=target_poi_idx,
                         target_category_idx=int(row.category_idx),
-                        target_time_idx=int(row.hour) + 1,
+                        query_hour=int(row.hour) + 1,
+                        query_weekday=int(row.weekday) + 1,
+                        query_time_slot=self._encode_time_slot(str(row.time_slot)),
                         event_id=int(row.event_id),
                     )
                 )
@@ -129,6 +142,13 @@ class SASRecDataset(Dataset[SASRecSample]):
             history["categories"].append(int(row.category_idx))
 
         return samples
+
+    @staticmethod
+    def _encode_time_slot(value: str) -> int:
+        try:
+            return TIME_SLOT_TO_IDX[value]
+        except KeyError as error:
+            raise ValueError(f"unknown query time_slot: {value!r}") from error
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -147,6 +167,7 @@ class SASRecCollator:
         *,
         use_time: bool = True,
         use_category: bool = True,
+        use_query_time: bool = False,
     ) -> None:
         if max_seq_len < 1:
             raise ValueError("max_seq_len must be positive")
@@ -154,6 +175,7 @@ class SASRecCollator:
         self.pad_id = int(pad_id)
         self.use_time = bool(use_time)
         self.use_category = bool(use_category)
+        self.use_query_time = bool(use_query_time)
 
     def _right_pad(self, values: tuple[int, ...]) -> list[int]:
         # 右侧补齐确保 PAD query 在因果约束下仍可看到之前的真实事件。
@@ -182,6 +204,17 @@ class SASRecCollator:
             inputs["category_sequence"] = torch.tensor(
                 [self._right_pad(sample.category_sequence) for sample in samples],
                 dtype=torch.long,
+            )
+        if self.use_query_time:
+            # Query time 是每次预测的上下文，形状为 [B]，不进行序列 padding。
+            inputs["query_hour"] = torch.tensor(
+                [sample.query_hour for sample in samples], dtype=torch.long
+            )
+            inputs["query_weekday"] = torch.tensor(
+                [sample.query_weekday for sample in samples], dtype=torch.long
+            )
+            inputs["query_time_slot"] = torch.tensor(
+                [sample.query_time_slot for sample in samples], dtype=torch.long
             )
 
         return {

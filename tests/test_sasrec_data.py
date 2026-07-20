@@ -51,7 +51,9 @@ def test_sequences_are_aligned_and_hours_reserve_zero_for_padding():
     assert dataset[0].time_sequence == (1,)
     assert dataset[1].poi_sequence == (2, 3)
     assert dataset[1].time_sequence == (1, 2)
-    assert dataset[1].target_time_idx == 24
+    assert dataset[1].query_hour == 24
+    assert dataset[1].query_weekday == 1
+    assert dataset[1].query_time_slot == 2
 
 
 def test_validation_and_test_include_previous_partition_histories():
@@ -78,3 +80,34 @@ def test_collator_right_pads_all_enabled_features_consistently():
     ]
     assert batch["target"].tolist() == [3, 4]
     assert batch["event_id"].tolist() == [1, 2]
+
+
+def test_query_time_is_batch_context_and_does_not_leak_target_poi():
+    samples = list(SASRecDataset(_bundle(), "train", max_seq_len=2))
+    batch = SASRecCollator(
+        max_seq_len=3,
+        pad_id=0,
+        use_time=True,
+        use_category=False,
+        use_query_time=True,
+    )(samples)
+    inputs = batch["inputs"]
+
+    assert inputs["time_sequence"].shape == (2, 3)
+    assert inputs["query_hour"].shape == (2,)
+    assert inputs["query_weekday"].shape == (2,)
+    assert inputs["query_time_slot"].shape == (2,)
+    assert "category_sequence" not in inputs
+    # 第一条样本的 target=3，只能在生成下一条样本后进入历史。
+    assert batch["target"].tolist() == [3, 4]
+    assert inputs["poi_sequence"][0].tolist() == [2, 0, 0]
+    assert 3 not in inputs["poi_sequence"][0].tolist()
+
+
+def test_query_time_is_omitted_when_disabled():
+    samples = list(SASRecDataset(_bundle(), "train", max_seq_len=2))
+    inputs = SASRecCollator(
+        max_seq_len=2, use_time=False, use_category=False, use_query_time=False
+    )(samples)["inputs"]
+
+    assert set(inputs) == {"poi_sequence", "attention_mask"}

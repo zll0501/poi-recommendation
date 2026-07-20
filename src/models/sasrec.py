@@ -21,8 +21,12 @@ class SASRec(nn.Module):
         dropout: float = 0.2,
         pad_id: int = 0,
         num_time_tokens: int = 25,
+        num_query_weekday_tokens: int = 8,
+        num_query_time_slot_tokens: int = 5,
         num_categories: int | None = None,
         use_time: bool = False,
+        use_history_time: bool | None = None,
+        use_query_time: bool = False,
         use_category: bool = False,
     ) -> None:
         super().__init__()
@@ -36,7 +40,12 @@ class SASRec(nn.Module):
         self.num_pois = int(num_pois)
         self.max_seq_len = int(max_seq_len)
         self.pad_id = int(pad_id)
-        self.use_time = bool(use_time)
+        # use_time 是旧配置的兼容名称；新配置用 use_history_time 明确语义。
+        self.use_history_time = (
+            bool(use_time) if use_history_time is None else bool(use_history_time)
+        )
+        self.use_time = self.use_history_time
+        self.use_query_time = bool(use_query_time)
         self.use_category = bool(use_category)
 
         self.poi_embedding = nn.Embedding(
@@ -46,7 +55,22 @@ class SASRec(nn.Module):
         self.time_embedding = (
             # 小时编码为 1～24，0 专门保留给 PAD。
             nn.Embedding(num_time_tokens, hidden_size, padding_idx=self.pad_id)
-            if self.use_time
+            if self.use_history_time
+            else None
+        )
+        self.query_hour_embedding = (
+            nn.Embedding(num_time_tokens, hidden_size)
+            if self.use_query_time
+            else None
+        )
+        self.query_weekday_embedding = (
+            nn.Embedding(num_query_weekday_tokens, hidden_size)
+            if self.use_query_time
+            else None
+        )
+        self.query_time_slot_embedding = (
+            nn.Embedding(num_query_time_slot_tokens, hidden_size)
+            if self.use_query_time
             else None
         )
         self.category_embedding = (
@@ -76,6 +100,10 @@ class SASRec(nn.Module):
         nn.init.normal_(self.position_embedding.weight, std=0.02)
         if self.time_embedding is not None:
             nn.init.normal_(self.time_embedding.weight, std=0.02)
+        if self.query_hour_embedding is not None:
+            nn.init.normal_(self.query_hour_embedding.weight, std=0.02)
+            nn.init.normal_(self.query_weekday_embedding.weight, std=0.02)
+            nn.init.normal_(self.query_time_slot_embedding.weight, std=0.02)
         if self.category_embedding is not None:
             nn.init.normal_(self.category_embedding.weight, std=0.02)
         with torch.no_grad():
@@ -91,6 +119,9 @@ class SASRec(nn.Module):
         attention_mask: Tensor,
         time_sequence: Tensor | None = None,
         category_sequence: Tensor | None = None,
+        query_hour: Tensor | None = None,
+        query_weekday: Tensor | None = None,
+        query_time_slot: Tensor | None = None,
     ) -> Tensor:
         """为每条历史输出完整 POI 词表上的下一地点 logits。"""
         if poi_sequence.ndim != 2 or attention_mask.shape != poi_sequence.shape:
@@ -112,7 +143,7 @@ class SASRec(nn.Module):
             position_ids
         )
 
-        if self.use_time:
+        if self.use_history_time:
             if time_sequence is None or time_sequence.shape != poi_sequence.shape:
                 raise ValueError("aligned time_sequence is required")
             hidden = hidden + self.time_embedding(time_sequence)
@@ -146,8 +177,28 @@ class SASRec(nn.Module):
         last_positions = attention_mask.long().sum(dim=1).sub(1)
         batch_indices = torch.arange(hidden.size(0), device=hidden.device)
         last_hidden = self.output_norm(hidden[batch_indices, last_positions])
+        final_hidden = last_hidden
+        if self.use_query_time:
+            query_values = (query_hour, query_weekday, query_time_slot)
+            if any(value is None for value in query_values) or any(
+                value.ndim != 1 or value.size(0) != poi_sequence.size(0)
+                for value in query_values
+                if value is not None
+            ):
+                raise ValueError(
+                    "query_hour, query_weekday, and query_time_slot must have shape [B]"
+                )
+            # Query time 在历史编码完成后融合，不改变 Transformer 注意力结构。
+            query_context = (
+                self.query_hour_embedding(query_hour)
+                + self.query_weekday_embedding(query_weekday)
+                + self.query_time_slot_embedding(query_time_slot)
+            )
+            final_hidden = last_hidden + query_context
+        if not torch.isfinite(final_hidden).all():
+            raise FloatingPointError("non-finite SASRec final hidden values")
         # 与 POI Embedding 共享输出权重，返回原始 logits，不提前做 softmax。
-        logits = F.linear(last_hidden, self.poi_embedding.weight)
+        logits = F.linear(final_hidden, self.poi_embedding.weight)
         if not torch.isfinite(logits).all():
             raise FloatingPointError("non-finite SASRec logits")
         return logits

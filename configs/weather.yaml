@@ -1,0 +1,30 @@
+source:
+  provider: open_meteo
+  # ERA5 supplies every selected atmospheric field. ERA5-Land returns null
+  # precipitation/weather-code/wind values for this historical API query.
+  dataset: era5
+  api_url: https://archive-api.open-meteo.com/v1/archive
+  timeout_seconds: 60
+  max_attempts: 3
+
+location:
+  name: New York City
+  latitude: 40.7128
+  longitude: -74.0060
+
+time:
+  start_date: 2012-04-12
+  end_date: 2013-02-16
+  timezone: UTC
+
+hourly_features:
+  - temperature_2m
+  - relative_humidity_2m
+  - precipitation
+  - weather_code
+  - wind_speed_10m
+
+output:
+  directory: data/external/weather
+  weather_file: nyc_hourly_weather.csv
+  metadata_file: nyc_hourly_weather_metadata.json

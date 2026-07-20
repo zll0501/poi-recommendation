@@ -43,6 +43,18 @@ python -m src.analysis.data_profile --config configs/data.yaml
 pytest -q
 ```
 
+### 下载纽约逐小时天气旁路数据
+
+天气数据与现有推荐数据接口相互独立，不会改变签到划分或已有模型输入。运行：
+
+```powershell
+python -m src.download_weather --config configs/weather.yaml
+```
+
+脚本从 Open-Meteo Historical Weather API 下载 ERA5 逐小时数据，输出到
+`data/external/weather/nyc_hourly_weather.csv`，并生成包含请求参数、质量检查和
+SHA256 校验值的 `nyc_hourly_weather_metadata.json`。生成的数据文件默认不提交到 Git。
+
 预处理包含：
 
 - 统一字段类型、UTC 时间和 `America/New_York` 本地时间；

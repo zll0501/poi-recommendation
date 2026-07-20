@@ -22,6 +22,9 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+data/external/weather/*.csv
+data/external/weather/*.json
+!data/external/weather/.gitkeep
 
 # Model checkpoints
 results/checkpoints/*

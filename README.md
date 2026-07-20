@@ -55,6 +55,16 @@ python -m src.download_weather --config configs/weather.yaml
 `data/external/weather/nyc_hourly_weather.csv`，并生成包含请求参数、质量检查和
 SHA256 校验值的 `nyc_hourly_weather_metadata.json`。生成的数据文件默认不提交到 Git。
 
+随后按签到事件的 UTC 小时生成独立天气旁路：
+
+```powershell
+python -m src.match_weather --config configs/weather.yaml
+```
+
+输出 `data/processed/weather_features.csv` 和质量报告
+`data/processed/weather_matching_report.json`。匹配以 `event_id` 为唯一键，不会改写
+`train_encoded.csv`、`valid_encoded.csv` 或 `test_encoded.csv`；不使用天气的模型无需修改。
+
 预处理包含：
 
 - 统一字段类型、UTC 时间和 `America/New_York` 本地时间；

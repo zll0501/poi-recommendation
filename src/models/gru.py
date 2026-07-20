@@ -142,6 +142,9 @@ class GRURecommender(BaseRecommender):
         )
         self.trainer: Optional[Trainer] = None
         self.training_history: Optional[dict[str, list[float]]] = None
+        self.training_summary: Optional[
+            dict[str, int | float | bool | None]
+        ] = None
 
     def fit(
         self,
@@ -155,17 +158,27 @@ class GRURecommender(BaseRecommender):
             weight_decay=float(self.training_config.get("weight_decay", 0.0001)),
         )
         loss_fn = nn.CrossEntropyLoss()
+        early_stopping_config = self.training_config.get("early_stopping", {})
+        if not isinstance(early_stopping_config, Mapping):
+            raise TypeError("training.early_stopping 必须是映射对象")
         self.trainer = Trainer(
             model=self.network,
             optimizer=optimizer,
             loss_fn=loss_fn,
             device=self.device,
+            early_stopping=early_stopping_config.get("enabled", False),
+            patience=int(early_stopping_config.get("patience", 5)),
+            min_delta=float(early_stopping_config.get("min_delta", 0.001)),
+            restore_best_weights=early_stopping_config.get(
+                "restore_best_weights", True
+            ),
         )
         self.training_history = self.trainer.fit(
             train_loader=train_data,
             valid_loader=valid_data,
             epochs=int(self.training_config.get("epochs", 50)),
         )
+        self.training_summary = self.trainer.training_summary
         return self.training_history
 
     def recommend(

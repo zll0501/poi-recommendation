@@ -1,4 +1,4 @@
-"""独立运行基础 GRU 下一 POI 推荐模型训练。"""
+"""独立运行一种请求时间增强 GRU 配置。"""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.datasets import load_data_bundle  # noqa: E402
 from src.evaluator import evaluate_next_poi, recommendations_to_frame  # noqa: E402
-from src.models.gru import GRURecommender  # noqa: E402
-from src.torch_datasets import NextPOITorchDataset  # noqa: E402
+from src.models.time_gru import TimeGRURecommender  # noqa: E402
+from src.torch_datasets import TimeAwareNextPOIDataset  # noqa: E402
 from src.utils.config import load_yaml  # noqa: E402
 
 
@@ -34,7 +34,7 @@ def _project_path(path: str | Path) -> Path:
 
 
 def _mapping_section(config: Mapping[str, Any], name: str) -> Mapping[str, Any]:
-    """读取配置段，并确保它是映射对象。"""
+    """读取配置段并确保它是映射对象。"""
     section = config.get(name, {})
     if not isinstance(section, Mapping):
         raise TypeError(f"配置字段 '{name}' 必须是映射对象")
@@ -42,10 +42,9 @@ def _mapping_section(config: Mapping[str, Any], name: str) -> Mapping[str, Any]:
 
 
 def _resolve_device(device_name: str) -> torch.device:
-    """解析训练设备，并在显式请求 GPU 但不可用时给出错误。"""
+    """解析训练设备，并检查显式请求的 CUDA 是否可用。"""
     if device_name == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     device = torch.device(device_name)
     if device.type == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("已请求 CUDA 设备，但当前环境无法使用 GPU")
@@ -53,7 +52,7 @@ def _resolve_device(device_name: str) -> torch.device:
 
 
 def _set_seed(seed: int) -> None:
-    """设置训练过程使用的基础随机种子。"""
+    """设置训练过程的随机种子。"""
     random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
@@ -62,8 +61,12 @@ def _set_seed(seed: int) -> None:
 
 def parse_args() -> argparse.Namespace:
     """解析命令行参数。"""
-    parser = argparse.ArgumentParser(description="训练基础 GRU 下一 POI 推荐模型")
-    parser.add_argument("--config", default="configs/gru.yaml", help="GRU 配置路径")
+    parser = argparse.ArgumentParser(description="训练一种请求时间增强 GRU")
+    parser.add_argument(
+        "--config",
+        default="configs/time_gru.yaml",
+        help="Time-GRU 配置路径",
+    )
     parser.add_argument(
         "--data-config",
         default="configs/data.yaml",
@@ -78,36 +81,36 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42, help="随机种子")
     parser.add_argument(
         "--checkpoint",
-        default="results/checkpoints/gru.pt",
+        default="results/checkpoints/time_gru.pt",
         help="模型权重保存路径",
     )
     parser.add_argument(
         "--history-output",
-        default="results/metrics/gru_training_history.json",
+        default="results/metrics/time_gru_training_history.json",
         help="训练损失历史保存路径",
     )
     parser.add_argument(
         "--result-output",
-        default="results/metrics/gru.csv",
+        default="results/metrics/time_gru.csv",
         help="统一实验结果 CSV 保存路径",
     )
     parser.add_argument(
         "--prediction-output",
         default=None,
-        help="Top-10 推荐明细路径，默认按 seed 保存到 results/predictions",
+        help="Top-10 推荐明细路径，默认按时间特征和 seed 保存",
     )
     return parser.parse_args()
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
-    """训练和评价基础 GRU，并返回统一格式的实验结果。"""
+    """训练、评价一种 Time-GRU 配置并返回实验结果。"""
     if args.num_workers < 0:
         raise ValueError("num_workers 不能为负数")
 
     config = load_yaml(_project_path(args.config))
     model_config = _mapping_section(config, "model")
-    if model_config.get("name") != "gru":
-        raise ValueError("run_gru.py 只接受 model.name 为 'gru' 的配置")
+    if model_config.get("name") != "time_gru":
+        raise ValueError("run_time_gru.py 只接受 model.name 为 'time_gru' 的配置")
 
     data_config = _mapping_section(config, "data")
     training_config = _mapping_section(config, "training")
@@ -118,28 +121,21 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     device = _resolve_device(args.device)
     _set_seed(args.seed)
-
     print(f"使用设备：{device}")
     print("正在加载公共数据……")
     data_bundle = load_data_bundle(_project_path(args.data_config))
 
-    print("正在构建 GRU 训练集、验证集和测试集……")
-    train_dataset = NextPOITorchDataset(
-        data_bundle=data_bundle,
-        partition="train",
-        max_history=max_history,
-    )
-    valid_dataset = NextPOITorchDataset(
-        data_bundle=data_bundle,
+    print("正在构建 Time-GRU 训练集、验证集和测试集……")
+    dataset_options = {
+        "data_bundle": data_bundle,
+        "max_history": max_history,
+    }
+    train_dataset = TimeAwareNextPOIDataset(partition="train", **dataset_options)
+    valid_dataset = TimeAwareNextPOIDataset(
         partition="validation",
-        max_history=max_history,
+        **dataset_options,
     )
-    test_dataset = NextPOITorchDataset(
-        data_bundle=data_bundle,
-        partition="test",
-        max_history=max_history,
-        include_metadata=True,
-    )
+    test_dataset = TimeAwareNextPOIDataset(partition="test", **dataset_options)
     if len(train_dataset) == 0:
         raise ValueError("训练集没有可用的下一 POI 样本")
     if len(valid_dataset) == 0:
@@ -160,29 +156,22 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         generator=train_generator,
         **loader_options,
     )
-    valid_loader = DataLoader(
-        valid_dataset,
-        shuffle=False,
-        **loader_options,
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        shuffle=False,
-        **loader_options,
-    )
+    valid_loader = DataLoader(valid_dataset, shuffle=False, **loader_options)
+    test_loader = DataLoader(test_dataset, shuffle=False, **loader_options)
 
-    print(
-        f"训练样本：{len(train_dataset)}，验证样本：{len(valid_dataset)}，"
-        f"测试样本：{len(test_dataset)}，"
-        f"POI 词表：{train_dataset.num_pois}"
-    )
-    recommender = GRURecommender(
+    recommender = TimeGRURecommender(
         config=config,
         num_pois=train_dataset.num_pois,
         padding_idx=train_dataset.padding_idx,
         device=device,
         candidate_poi_ids=data_bundle.candidate_poi_ids,
     )
+    print(
+        f"模型：{recommender.model_name}，训练样本：{len(train_dataset)}，"
+        f"验证样本：{len(valid_dataset)}，测试样本：{len(test_dataset)}，"
+        f"POI 词表：{train_dataset.num_pois}"
+    )
+
     training_started_at = time.perf_counter()
     history = recommender.fit(train_data=train_loader, valid_data=valid_loader)
     train_time = time.perf_counter() - training_started_at
@@ -207,7 +196,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         mrr_k=10,
     )
     result: dict[str, Any] = {
-        "model": "GRU",
+        "model": recommender.model_name,
         "seed": int(args.seed),
     }
     result.update(metrics)
@@ -251,8 +240,17 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         writer.writeheader()
         writer.writerow(result)
 
+    enabled_features = []
+    if recommender.use_hour:
+        enabled_features.append("hour")
+    if recommender.use_time_slot:
+        enabled_features.append("time_slot")
+    if recommender.use_weekday:
+        enabled_features.append("weekday")
+    feature_slug = "_".join(enabled_features) or "no_time"
     prediction_output = args.prediction_output or (
-        f"results/predictions/gru_seed{args.seed}_top10.csv"
+        "results/predictions/"
+        f"time_gru_{feature_slug}_seed{args.seed}_top10.csv"
     )
     prediction_path = _project_path(prediction_output)
     prediction_path.parent.mkdir(parents=True, exist_ok=True)
@@ -272,7 +270,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def main() -> None:
-    """运行命令行训练入口。"""
+    """运行命令行 Time-GRU 训练入口。"""
     run(parse_args())
 
 

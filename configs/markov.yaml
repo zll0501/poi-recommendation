@@ -1,0 +1,2 @@
+model_name: "markov"
+data_path: "configs/data.yaml"

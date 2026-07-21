@@ -1,0 +1,8 @@
+[build]
+  command = "npm run build"
+  publish = "dist" # 或者你的构建输出目录，如 'build' 或 'public'
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

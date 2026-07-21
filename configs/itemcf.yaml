@@ -1,0 +1,6 @@
+# configs/itemcf.yaml
+model_name: "itemcf"
+data_path: "configs/data.yaml"  # 指向公共数据配置文件
+
+# 你的 ItemCF 专属超参数
+k: 50  # 相似 POI 的近邻保留数量

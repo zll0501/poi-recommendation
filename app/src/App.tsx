@@ -27,8 +27,14 @@ export default function App() {
     loadTrajectoryViewData()
       .then((users) => {
         if (!mounted) return;
-        setAvailableUsers(users);
-        setSelectedUserId(resolveInitialSelection(users));
+        const displayableUsers = users.filter((user) =>
+          getRecommendationForTrajectoryUser(user.userId, user.userIdx)
+        );
+        if (displayableUsers.length === 0) {
+          throw new Error("样本池中没有同时具备轨迹和推荐结果的用户");
+        }
+        setAvailableUsers(displayableUsers);
+        setSelectedUserId(resolveInitialSelection(displayableUsers));
         setLoading(false);
       })
       .catch((error: unknown) => {
@@ -87,8 +93,11 @@ export default function App() {
   };
 
   const reroll = () => {
-    const randomPick = pickRandomUser(availableUsers);
-    if (randomPick) setSelectedUserId(randomPick.userId ?? randomPick.userIdx);
+    const candidates = availableUsers.filter(
+      (user) => (user.userId ?? user.userIdx) !== selectedUserId
+    );
+    const randomPick = pickRandomUser(candidates.length > 0 ? candidates : availableUsers);
+    if (randomPick) setSelectedUserId(randomPick.userId);
     setFocusPoint(null);
   };
 
@@ -128,7 +137,7 @@ export default function App() {
         <TopControls
           availableUsers={availableUsers}
           selectedUser={selectedUser}
-          sampleUserIds={sampleUsers}
+          samplePoolSize={sampleUsers.length}
           onRandomize={reroll}
           onSelectUser={selectUser}
           onTogglePlay={togglePlay}
@@ -199,5 +208,5 @@ function resolveInitialSelection(users: UserTrajectory[]): number | null {
   }
 
   const randomPick = pickRandomUser(users);
-  return randomPick?.userId ?? randomPick?.userIdx ?? users[0].userId ?? users[0].userIdx;
+  return randomPick?.userId ?? users[0].userId;
 }

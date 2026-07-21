@@ -19,7 +19,7 @@ export default function RecommendationList({
           <h4 className="mt-1 text-lg font-semibold text-slate-900">推荐结果排行榜</h4>
         </div>
         <div className="text-right text-xs text-slate-400">
-          <p>样本事件 {recommendation.eventId}</p>
+          <p>预测事件 {recommendation.latestEventId}</p>
         </div>
       </div>
 

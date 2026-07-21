@@ -18,7 +18,7 @@ export default function CategoryBarChart({ categories, counts, title }: Props) {
           x: counts,
           y: categories,
           marker: {
-            color: counts.map((count, index) => `rgba(37, 99, 235, ${0.28 + (index / Math.max(1, counts.length)) * 0.5})`),
+            color: counts.map((_, index) => `rgba(37, 99, 235, ${0.28 + (index / Math.max(1, counts.length)) * 0.5})`),
             line: { color: "rgba(37, 99, 235, 0.9)", width: 1 },
           },
           hovertemplate: "<b>%{y}</b><br>签到次数: %{x}<extra></extra>",

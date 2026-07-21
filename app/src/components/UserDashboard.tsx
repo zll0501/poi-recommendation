@@ -1,4 +1,4 @@
-import type { PoiLookupEntry, UserTrajectory } from "../data/trajectories";
+import type { UserTrajectory } from "../data/trajectories";
 import type { UserRecommendationEntry } from "../data/recommendations";
 import UserPanel from "./UserPanel";
 
@@ -10,8 +10,16 @@ interface Props {
 }
 
 export default function UserDashboard({ user, recommendation, revealCount, onFocusPoint }: Props) {
-  if (!user || !recommendation) {
+  if (!user) {
     return null;
+  }
+
+  if (!recommendation) {
+    return (
+      <section className="rounded-[28px] border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+        当前用户没有可对齐的推荐结果，请重新抽取其他样本用户。
+      </section>
+    );
   }
 
   return (

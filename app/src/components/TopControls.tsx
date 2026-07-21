@@ -3,7 +3,7 @@ import type { UserTrajectory } from "../data/trajectories";
 interface Props {
   availableUsers: UserTrajectory[];
   selectedUser: UserTrajectory | null;
-  sampleUserIds: number[];
+  samplePoolSize: number;
   onRandomize: () => void;
   onSelectUser: (userId: number) => void;
   onTogglePlay: () => void;
@@ -20,7 +20,7 @@ interface Props {
 export default function TopControls({
   availableUsers,
   selectedUser,
-  sampleUserIds,
+  samplePoolSize,
   onRandomize,
   onSelectUser,
   onTogglePlay,
@@ -56,7 +56,7 @@ export default function TopControls({
             随机抽 1 位用户
           </button>
           <div className="rounded-2xl bg-slate-100 px-4 py-2.5 text-xs text-slate-500">
-            样本池 {sampleUserIds.length} 人
+            可展示 {availableUsers.length}/{samplePoolSize} 人
           </div>
           <div className="rounded-2xl bg-slate-100 px-4 py-2.5 text-xs text-slate-500">
             当前 1 人
@@ -68,12 +68,12 @@ export default function TopControls({
         <label className="grid gap-1.5 text-xs font-medium text-slate-500">
           用户
           <select
-            value={selectedUser?.userId ?? selectedUser?.userIdx ?? ""}
+            value={selectedUser?.userId ?? ""}
             onChange={(event) => onSelectUser(Number(event.target.value))}
             className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-indigo-400"
           >
             {availableUsers.map((user) => (
-              <option key={user.userId ?? user.userIdx} value={user.userId ?? user.userIdx}>
+              <option key={user.userId} value={user.userId}>
                 {user.userLabel}
               </option>
             ))}
@@ -118,7 +118,7 @@ export default function TopControls({
         <StatChip label="选中用户" value={selectedUser ? "1 人" : "0 人"} />
         <StatChip label="签到点" value={`${totalCheckins} 次`} />
         <StatChip label="轨迹里程" value={`${totalDistanceKm.toFixed(1)} km`} />
-        <StatChip label="样本池" value={`${availableUsers.length} 人`} />
+        <StatChip label="有效样本" value={`${availableUsers.length} 人`} />
       </div>
     </section>
   );

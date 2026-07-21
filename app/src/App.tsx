@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import TopControls from "./components/TopControls";
 import TrajectoryMap from "./components/TrajectoryMap";
 import UserDashboard from "./components/UserDashboard";
+import RecommendationList from "./components/RecommendationList";
 import {
   loadTrajectoryViewData,
   pickRandomUser,
@@ -61,6 +62,15 @@ export default function App() {
     () => getRecommendationForTrajectoryUser(selectedUser?.userId, selectedUser?.userIdx),
     [selectedUser]
   );
+
+  const hitPoiIdx = useMemo(() => {
+    if (!selectedUser || !selectedRecommendation) return null;
+    return (
+      selectedRecommendation.topK.find(
+        (item) => item.poiIdx === selectedUser.targetCheckin.poiIdx
+      )?.poiIdx ?? null
+    );
+  }, [selectedRecommendation, selectedUser]);
 
   const maxSteps = useMemo(
     () => Math.max(1, selectedUser?.checkins.length ?? 1),
@@ -165,7 +175,7 @@ export default function App() {
                   用户历史签到轨迹地图
                 </h1>
                 <p className="mt-1 max-w-4xl text-sm leading-relaxed text-slate-500">
-                  这里不再把全部轨迹连成“蜘蛛网”，而是保留最近的高价值轨迹段，叠加推荐层和真实下一站。
+                  左侧回放用户最近轨迹，右侧展示同一预测事件的Top-10地点；点击推荐项可在地图中定位。
                 </p>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right text-xs text-slate-500">
@@ -175,13 +185,29 @@ export default function App() {
             </div>
           </div>
 
-          <div className="h-[58vh] min-h-[520px] bg-slate-100/50">
-            <TrajectoryMap
-              users={selectedUser ? [selectedUser] : []}
-              recommendation={selectedRecommendation}
-              revealCount={revealCount}
-              focusPoint={focusPoint}
-            />
+          <div className="grid xl:grid-cols-[minmax(0,1fr)_390px]">
+            <div className="h-[58vh] min-h-[520px] bg-slate-100/50">
+              <TrajectoryMap
+                users={selectedUser ? [selectedUser] : []}
+                recommendation={selectedRecommendation}
+                revealCount={revealCount}
+                focusPoint={focusPoint}
+              />
+            </div>
+
+            <aside className="border-t border-slate-200/80 bg-white/90 p-4 xl:h-[58vh] xl:min-h-[520px] xl:overflow-y-auto xl:border-l xl:border-t-0">
+              {selectedRecommendation ? (
+                <RecommendationList
+                  recommendation={selectedRecommendation}
+                  highlightPoiIdx={hitPoiIdx}
+                  onPickPoi={(lat, lon) => setFocusPoint({ lat, lon })}
+                />
+              ) : (
+                <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+                  当前用户没有可展示的推荐结果。
+                </div>
+              )}
+            </aside>
           </div>
         </section>
 

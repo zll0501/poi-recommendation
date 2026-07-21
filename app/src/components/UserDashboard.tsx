@@ -24,7 +24,7 @@ export default function UserDashboard({ user, recommendation, revealCount, onFoc
 
   return (
     <section>
-      <UserPanel user={user} recommendation={recommendation} revealCount={revealCount} onFocusPoint={onFocusPoint} />
+      <UserPanel user={user} revealCount={revealCount} onFocusPoint={onFocusPoint} />
     </section>
   );
 }

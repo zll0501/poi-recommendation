@@ -1,20 +1,17 @@
 import { useMemo } from "react";
 import CategoryBarChart from "./CategoryBarChart";
 import InterestRadarChart from "./InterestRadarChart";
-import RecommendationList from "./RecommendationList";
 import UserTimeline from "./UserTimeline";
 import type { UserTrajectory } from "../data/trajectories";
-import type { UserRecommendationEntry } from "../data/recommendations";
 import { totalDistance } from "../data/trajectories";
 
 interface Props {
   user: UserTrajectory;
-  recommendation: UserRecommendationEntry;
   revealCount: number;
   onFocusPoint: (point: { lat: number; lon: number } | null) => void;
 }
 
-export default function UserPanel({ user, recommendation, revealCount, onFocusPoint }: Props) {
+export default function UserPanel({ user, revealCount, onFocusPoint }: Props) {
   const totalKm = totalDistance(user.checkins);
   const visibleCount = Math.max(1, Math.min(revealCount, user.checkins.length));
   const targetCheckin = user.targetCheckin;
@@ -49,9 +46,6 @@ export default function UserPanel({ user, recommendation, revealCount, onFocusPo
 
   const topCategories = categoryStats.length === 0 ? ["无数据"] : categoryStats.map((item) => item.category);
   const topCounts = categoryStats.length === 0 ? [0] : categoryStats.map((item) => item.count);
-
-  const hitPoiIdx =
-    recommendation.topK.find((item) => item.poiIdx === targetCheckin.poiIdx)?.poiIdx ?? null;
 
   return (
     <section className="rounded-[28px] border border-slate-200/80 bg-white/85 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur sm:p-5">
@@ -101,14 +95,6 @@ export default function UserPanel({ user, recommendation, revealCount, onFocusPo
             />
           </div>
         </div>
-      </div>
-
-      <div className="mt-4">
-        <RecommendationList
-          recommendation={recommendation}
-          highlightPoiIdx={hitPoiIdx}
-          onPickPoi={(lat, lon) => onFocusPoint({ lat, lon })}
-        />
       </div>
 
       <div className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">

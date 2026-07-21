@@ -41,10 +41,10 @@ export default function TopControls({
             Next POI Recommendation Visual Lab
           </p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-            上图下表 · 单用户展示 · 推荐命中高亮
+            用户轨迹与下一POI推荐分析
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-500">
-            每次只展示一位样本用户，顶部控制条负责播放回放，底部卡片区负责画像、类别分布和推荐榜单。
+            每次只展示一位样本用户，地图右侧呈现Top-10预测地点，底部保留用户画像、类别分布和轨迹列表。
           </p>
         </div>
 

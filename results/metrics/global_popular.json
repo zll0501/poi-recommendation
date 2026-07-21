@@ -1,0 +1,34 @@
+{
+  "model": "GlobalPopular",
+  "protocol": {
+    "fit_on": "train",
+    "candidate_scope": "train_pois",
+    "exclude_seen_pois": false,
+    "tie_break": "visit_count_desc_then_poi_idx_asc",
+    "top_k": 10
+  },
+  "data": {
+    "train_events": 142536,
+    "test_events": 17817,
+    "evaluable_test_events": 16564,
+    "candidate_pois": 9803
+  },
+  "metrics": {
+    "Coverage": 0.9296739069428074,
+    "HitRate@5": 0.022579087177010383,
+    "NDCG@5": 0.01441165656531247,
+    "HitRate@10": 0.03127263945906786,
+    "NDCG@10": 0.017226354740680655,
+    "MRR@10": 0.012910960085555595
+  },
+  "runtime_seconds": {
+    "fit": 0.014813799999956245,
+    "total_fit_recommend_evaluate": 0.5513875999999982
+  },
+  "artifacts": {
+    "predictions": "D:\\qq\\实训\\poi-recommendation\\results\\predictions\\global_popular_test.csv",
+    "metrics": "D:\\qq\\实训\\poi-recommendation\\results\\metrics\\global_popular.json",
+    "ranking": "D:\\qq\\实训\\poi-recommendation\\results\\metrics\\global_popular_ranking.csv",
+    "model": "D:\\qq\\实训\\poi-recommendation\\results\\checkpoints\\global_popular.json"
+  }
+}

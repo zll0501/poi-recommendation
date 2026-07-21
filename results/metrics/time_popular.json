@@ -1,0 +1,86 @@
+{
+  "model": "TimePopular",
+  "protocol": {
+    "fit_on": "train",
+    "candidate_scope": "train_pois",
+    "exclude_seen_pois": false,
+    "query_feature": "time_slot",
+    "fallback": "global_popular",
+    "tie_break": "slot_visit_count_desc_then_poi_idx_asc",
+    "top_k": 10
+  },
+  "data": {
+    "train_events": 142536,
+    "test_events": 17817,
+    "evaluable_test_events": 16564,
+    "candidate_pois": 9803
+  },
+  "metrics": {
+    "Coverage": 0.9296739069428074,
+    "HitRate@5": 0.021854624486838926,
+    "NDCG@5": 0.014920983115752951,
+    "HitRate@10": 0.03344602752958223,
+    "NDCG@10": 0.01860152875265174,
+    "MRR@10": 0.014114109581689875
+  },
+  "per_time_slot": {
+    "afternoon": {
+      "test_events": 5523,
+      "evaluable_test_events": 5124,
+      "metrics": {
+        "Coverage": 0.9277566539923955,
+        "HitRate@5": 0.01873536299765808,
+        "NDCG@5": 0.01251339198297943,
+        "HitRate@10": 0.03044496487119438,
+        "NDCG@10": 0.016205354188639495,
+        "MRR@10": 0.011910647683481407
+      }
+    },
+    "evening": {
+      "test_events": 5138,
+      "evaluable_test_events": 4806,
+      "metrics": {
+        "Coverage": 0.935383417672246,
+        "HitRate@5": 0.019975031210986267,
+        "NDCG@5": 0.014251540172079006,
+        "HitRate@10": 0.031002913025384937,
+        "NDCG@10": 0.017752196105700783,
+        "MRR@10": 0.01378856786160157
+      }
+    },
+    "morning": {
+      "test_events": 5183,
+      "evaluable_test_events": 4800,
+      "metrics": {
+        "Coverage": 0.9261045726413274,
+        "HitRate@5": 0.027291666666666665,
+        "NDCG@5": 0.016967659517581307,
+        "HitRate@10": 0.03791666666666667,
+        "NDCG@10": 0.020326491915703904,
+        "MRR@10": 0.014937996031746031
+      }
+    },
+    "night": {
+      "test_events": 1973,
+      "evaluable_test_events": 1834,
+      "metrics": {
+        "Coverage": 0.9295489102889002,
+        "HitRate@5": 0.021264994547437296,
+        "NDCG@5": 0.01804518868982733,
+        "HitRate@10": 0.03653217011995638,
+        "NDCG@10": 0.02300723648689092,
+        "MRR@10": 0.01896712883626733
+      }
+    }
+  },
+  "runtime_seconds": {
+    "fit": 0.048006400000303984,
+    "total_fit_recommend_evaluate": 0.8387087000000975
+  },
+  "artifacts": {
+    "predictions": "D:\\qq\\实训\\poi-recommendation\\results\\predictions\\time_popular_test.csv",
+    "metrics": "D:\\qq\\实训\\poi-recommendation\\results\\metrics\\time_popular.json",
+    "ranking": "D:\\qq\\实训\\poi-recommendation\\results\\metrics\\time_popular_rankings.csv",
+    "model": "D:\\qq\\实训\\poi-recommendation\\results\\checkpoints\\time_popular.json"
+  }
+}

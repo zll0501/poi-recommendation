@@ -1,0 +1,13 @@
+{
+  "Coverage": 0.9296739069428074,
+  "HitRate@5": 0.46359574981888435,
+  "HitRate@10": 0.5423810673750302,
+  "NDCG@5": 0.3532185387986392,
+  "NDCG@10": 0.37880850910877994,
+  "MRR@10": 0.3271934401628316,
+  "best_epoch": 10,
+  "epochs_trained": 20,
+  "selection_metric": "NDCG@10",
+  "best_validation_ndcg10": 0.3815129100279892,
+  "selected_epoch_validation_loss": 5.176699844758902
+}

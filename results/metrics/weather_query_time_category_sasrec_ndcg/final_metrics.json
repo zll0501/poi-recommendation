@@ -1,0 +1,15 @@
+{
+  "Coverage": 0.9296739069428074,
+  "HitRate@5": 0.4689688481043226,
+  "HitRate@10": 0.5523424293648878,
+  "NDCG@5": 0.35628380788480235,
+  "NDCG@10": 0.3833222608479413,
+  "MRR@10": 0.33015542407899323,
+  "best_epoch": 9,
+  "epochs_trained": 19,
+  "initial_weather_weight": 0.1,
+  "learned_weather_weight": 0.6195446848869324,
+  "selection_metric": "NDCG@10",
+  "best_validation_ndcg10": 0.3831468606523612,
+  "selected_epoch_validation_loss": 5.113498488468911
+}

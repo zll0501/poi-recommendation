@@ -1,0 +1,34 @@
+data_config: configs/data.yaml
+weather_config: configs/weather.yaml
+
+preprocessing:
+  fit_on: train
+  unknown_weather_group_id: 0
+  categorical_column: weather_group
+  numeric_features:
+    - input: temperature_2m
+      output: temperature_z
+      transform: identity
+    - input: relative_humidity_2m
+      output: humidity_z
+      transform: identity
+    - input: precipitation
+      output: precipitation_log_z
+      transform: log1p
+    - input: wind_speed_10m
+      output: wind_speed_z
+      transform: identity
+  binary_features:
+    - has_precipitation
+
+output:
+  directory: data/processed
+  features_file: weather_model_features.csv
+  statistics_file: weather_feature_stats.json
+
+encoder:
+  weather_embedding_dim: 8
+  numeric_hidden_dim: 16
+  output_dim: 64
+  dropout: 0.1
+  initial_weather_weight: 0.1

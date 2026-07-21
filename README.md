@@ -75,6 +75,19 @@ python -m experiments.run_time_weather_popular \
 该实验只在训练集拟合“时间段+天气”热度，按“时间天气 → 时间 → 全局”顺序回退，
 并报告相对 Time Popular 的逐指标差值和分天气结果。
 
+### 生成无泄漏天气模型特征
+
+天气标准化参数和天气类别词表只在训练集拟合，验证集与测试集仅应用训练参数：
+
+```powershell
+python -m src.weather_features --config configs/weather_model.yaml
+```
+
+输出 `data/processed/weather_model_features.csv` 与
+`data/processed/weather_feature_stats.json`。`WeatherFeatureStore` 可按 `event_id`
+返回模型所需的天气类别张量和连续特征张量；`src/layers/weather.py` 提供独立的
+`WeatherEncoder` 与低权重 `WeatherCategoryScorer`，无需修改SASRec内部结构。
+
 预处理包含：
 
 - 统一字段类型、UTC 时间和 `America/New_York` 本地时间；

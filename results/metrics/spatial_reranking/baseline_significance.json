@@ -1,0 +1,59 @@
+{
+  "events": 16564,
+  "users": 812,
+  "bootstrap_samples": 5000,
+  "seed": 42,
+  "metrics": {
+    "HitRate@5": {
+      "absolute_delta": 6.037189084762135e-05,
+      "relative_delta_percent": 0.013025921583952063,
+      "ci95_lower": -0.0017243869605617097,
+      "ci95_upper": 0.0018584480942547047,
+      "two_sided_bootstrap_p": 0.9758048390321936,
+      "ci_excludes_zero": false,
+      "unreranked": 0.4634750060371891,
+      "distance": 0.46353537792803673
+    },
+    "HitRate@10": {
+      "absolute_delta": 0.0032600821057715526,
+      "relative_delta_percent": 0.6010016694490817,
+      "ci95_lower": 0.0014774749334818882,
+      "ci95_upper": 0.005085567631662989,
+      "two_sided_bootstrap_p": 0.0003999200159968006,
+      "ci_excludes_zero": true,
+      "unreranked": 0.5424414392658778,
+      "distance": 0.5457015213716494
+    },
+    "NDCG@5": {
+      "absolute_delta": -8.963696532374595e-05,
+      "relative_delta_percent": -0.025379607674340072,
+      "ci95_lower": -0.0011910666143973626,
+      "ci95_upper": 0.0010451167942009281,
+      "two_sided_bootstrap_p": 0.874625074985003,
+      "ci_excludes_zero": false,
+      "unreranked": 0.3531849919586147,
+      "distance": 0.353095354993291
+    },
+    "NDCG@10": {
+      "absolute_delta": 0.0010406562857284106,
+      "relative_delta_percent": 0.27470093686308295,
+      "ci95_lower": 2.6494412779263672e-05,
+      "ci95_upper": 0.0020639430851518256,
+      "two_sided_bootstrap_p": 0.04279144171165767,
+      "ci_excludes_zero": true,
+      "unreranked": 0.3788324487029678,
+      "distance": 0.37987310498869614
+    },
+    "MRR@10": {
+      "absolute_delta": 0.00035847008045752297,
+      "relative_delta_percent": 0.10955365251569976,
+      "ci95_lower": -0.0007946705843405945,
+      "ci95_upper": 0.0015342037540499063,
+      "two_sided_bootstrap_p": 0.5594881023795241,
+      "ci_excludes_zero": false,
+      "unreranked": 0.3272096112050229,
+      "distance": 0.32756808128548043
+    }
+  },
+  "comparison": "distance_minus_unreranked"
+}

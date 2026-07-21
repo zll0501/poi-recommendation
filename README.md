@@ -221,3 +221,30 @@ results/metrics/global_popular.json
 results/metrics/global_popular_ranking.csv
 results/checkpoints/global_popular.json
 ```
+
+## Spatial distance reranking
+
+The spatial extension is an inference-time module and does not modify or
+retrain the original SASRec implementation. It uses only the last observable
+check-in before each recommendation request. Mobility statistics are fitted on
+the training split, the penalty weight is selected on validation NDCG@10, and
+the test split is evaluated only after selection.
+
+```powershell
+python -m experiments.analyze_transition_distance `
+  --config configs/spatial_reranker.yaml
+
+python -m experiments.run_spatial_reranking `
+  --config configs/spatial_reranker.yaml --runner baseline
+
+python -m experiments.run_spatial_reranking `
+  --config configs/spatial_reranker.yaml --runner weather
+```
+
+The reranker first takes the model's Top-100 candidates and applies the soft
+penalty `score' = score - lambda * log(1 + distance_km)`. Both checkpoints
+select `lambda=0.2` on the validation split. On the test split, distance
+reranking significantly improves HitRate@10 and NDCG@10 for both the Category-
+SASRec checkpoint and the weather-aware checkpoint, while Top-5 metrics remain
+essentially unchanged. This supports distance as a weak spatial constraint,
+not as a replacement for sequential preference modelling.

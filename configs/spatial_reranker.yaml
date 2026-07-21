@@ -1,0 +1,23 @@
+analysis:
+  # Mobility statistics are fitted on training events only.
+  train_path: data/processed/train_encoded.csv
+  distance_thresholds_km: [1, 3, 5, 10, 20]
+
+models:
+  baseline:
+    config: configs/sasrec_query_time_category_ndcg.yaml
+    checkpoint: results/checkpoints/sasrec_query_time_category_ndcg.pt
+  weather:
+    config: configs/weather_query_time_category_sasrec_ndcg.yaml
+    checkpoint: results/checkpoints/weather_query_time_category_sasrec_ndcg.pt
+
+reranking:
+  candidate_top_m: 100
+  distance_penalty: log1p
+  lambda_grid: [0.0, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
+  selection_metric: NDCG@10
+
+output:
+  analysis_json: results/metrics/spatial_transition_analysis.json
+  by_time_gap_csv: results/metrics/spatial_transition_by_time_gap.csv
+  reranking_directory: results/metrics/spatial_reranking

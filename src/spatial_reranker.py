@@ -24,6 +24,90 @@ TRANSITION_COLUMNS = {
 }
 
 
+def build_query_contexts(
+    prior: pd.DataFrame,
+    targets: pd.DataFrame,
+) -> pd.DataFrame:
+    """Return the last observable location and time gap for each target event.
+
+    Target rows are appended to history only after their own query context is
+    emitted.  This mirrors rolling next-POI evaluation and prevents target
+    coordinates from leaking into their own spatial feature.
+    """
+    required = {"event_id", "user_id", "timestamp", "latitude", "longitude"}
+    for name, frame in (("prior", prior), ("targets", targets)):
+        missing = sorted(required.difference(frame.columns))
+        if missing:
+            raise ValueError(f"{name} data is missing query columns: {missing}")
+
+    histories: dict[str, tuple[float, float, float]] = {}
+    ordered_prior = prior.sort_values(["user_id", "timestamp", "event_id"], kind="stable")
+    for row in ordered_prior.itertuples(index=False):
+        histories[str(row.user_id)] = (
+            float(row.latitude),
+            float(row.longitude),
+            float(row.timestamp),
+        )
+
+    rows: list[dict[str, float | int]] = []
+    ordered_targets = targets.sort_values(
+        ["user_id", "timestamp", "event_id"], kind="stable"
+    )
+    for row in ordered_targets.itertuples(index=False):
+        key = str(row.user_id)
+        previous = histories.get(key)
+        if previous is not None:
+            gap_hours = (float(row.timestamp) - previous[2]) / 3600.0
+            if gap_hours <= 0:
+                raise ValueError("query contexts require increasing user timestamps")
+            rows.append(
+                {
+                    "event_id": int(row.event_id),
+                    "last_latitude": previous[0],
+                    "last_longitude": previous[1],
+                    "time_gap_hours": gap_hours,
+                }
+            )
+        histories[key] = (
+            float(row.latitude),
+            float(row.longitude),
+            float(row.timestamp),
+        )
+    return pd.DataFrame(
+        rows,
+        columns=["event_id", "last_latitude", "last_longitude", "time_gap_hours"],
+    )
+
+
+def rerank_by_distance(
+    poi_ids: Iterable[int] | np.ndarray,
+    model_scores: Iterable[float] | np.ndarray,
+    distances_km: Iterable[float] | np.ndarray,
+    penalty_weight: float,
+    *,
+    top_k: int = 10,
+) -> list[int]:
+    """Rerank a model shortlist with a soft log-distance penalty."""
+    ids = np.asarray(poi_ids, dtype=np.int64)
+    scores = np.asarray(model_scores, dtype=float)
+    distances = np.asarray(distances_km, dtype=float)
+    if ids.ndim != 1 or scores.shape != ids.shape or distances.shape != ids.shape:
+        raise ValueError("POI IDs, scores and distances must be aligned 1-D arrays")
+    if len(ids) < top_k or top_k < 1:
+        raise ValueError("candidate shortlist must contain at least top_k POIs")
+    if len(np.unique(ids)) != len(ids):
+        raise ValueError("candidate POI IDs must be unique")
+    if not np.isfinite(scores).all() or not np.isfinite(distances).all():
+        raise ValueError("scores and distances must be finite")
+    if (distances < 0).any() or penalty_weight < 0:
+        raise ValueError("distances and penalty_weight must be non-negative")
+
+    adjusted = scores - float(penalty_weight) * np.log1p(distances)
+    # Stable sorting makes lambda=0 reproduce the model order when scores tie.
+    order = np.argsort(-adjusted, kind="stable")[:top_k]
+    return [int(value) for value in ids[order]]
+
+
 def haversine_km(
     latitude_a: Iterable[float] | np.ndarray,
     longitude_a: Iterable[float] | np.ndarray,

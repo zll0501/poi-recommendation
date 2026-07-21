@@ -1,0 +1,25 @@
+{
+  "fit_partition": "train_only",
+  "transition_count": 141459,
+  "user_count": 1077,
+  "same_poi_ratio": 0.0762128956093285,
+  "mean_distance_km": 4.062433822094296,
+  "maximum_distance_km": 43.76339665004288,
+  "distance_quantiles": {
+    "p25_km": 0.24162808839065936,
+    "p50_km": 1.4668875469558753,
+    "p75_km": 5.550600803488244,
+    "p90_km": 12.649692926802212,
+    "p95_km": 16.941839715343498,
+    "p99_km": 23.369184567242883
+  },
+  "distance_locality": {
+    "within_1km_ratio": 0.4411101449890074,
+    "within_3km_ratio": 0.6220883789649297,
+    "within_5km_ratio": 0.7266133650032872,
+    "within_10km_ratio": 0.8593726804233028,
+    "within_20km_ratio": 0.9723594822528082
+  },
+  "source": "data\\processed\\train_encoded.csv",
+  "definition": "consecutive events within each user in the training split"
+}

@@ -1,0 +1,58 @@
+{
+  "events": 16564,
+  "users": 812,
+  "bootstrap_samples": 5000,
+  "seed": 42,
+  "metrics": {
+    "HitRate@5": {
+      "baseline": 0.46359574981888435,
+      "weather": 0.4689688481043226,
+      "absolute_delta": 0.0053730982854382995,
+      "relative_delta_percent": 1.1590050787863002,
+      "ci95_lower": -0.0009527739981889443,
+      "ci95_upper": 0.011479145907936162,
+      "two_sided_bootstrap_p": 0.08318336332733453,
+      "ci_excludes_zero": false
+    },
+    "HitRate@10": {
+      "baseline": 0.5423810673750302,
+      "weather": 0.5523424293648878,
+      "absolute_delta": 0.009961361989857523,
+      "relative_delta_percent": 1.8365983971504896,
+      "ci95_lower": 0.003772922636559468,
+      "ci95_upper": 0.015953730779577544,
+      "two_sided_bootstrap_p": 0.0027994401119776045,
+      "ci_excludes_zero": true
+    },
+    "NDCG@5": {
+      "baseline": 0.3532185387986391,
+      "weather": 0.3562838078848024,
+      "absolute_delta": 0.003065269086163219,
+      "relative_delta_percent": 0.8678109299100665,
+      "ci95_lower": -0.0017317975769314566,
+      "ci95_upper": 0.008071845495064177,
+      "two_sided_bootstrap_p": 0.20235952809438112,
+      "ci_excludes_zero": false
+    },
+    "NDCG@10": {
+      "baseline": 0.37880850910878,
+      "weather": 0.3833222608479413,
+      "absolute_delta": 0.0045137517391613344,
+      "relative_delta_percent": 1.191565561655625,
+      "ci95_lower": 0.0002520240913792843,
+      "ci95_upper": 0.009016523354456397,
+      "two_sided_bootstrap_p": 0.04039192161567687,
+      "ci_excludes_zero": true
+    },
+    "MRR@10": {
+      "baseline": 0.3271934401628316,
+      "weather": 0.33015542407899323,
+      "absolute_delta": 0.0029619839161616514,
+      "relative_delta_percent": 0.9052699573339814,
+      "ci95_lower": -0.0017790487956304822,
+      "ci95_upper": 0.00769010356149714,
+      "two_sided_bootstrap_p": 0.21435712857428516,
+      "ci_excludes_zero": false
+    }
+  }
+}

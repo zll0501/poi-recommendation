@@ -12,6 +12,7 @@ export interface CheckIn {
 }
 
 export interface UserTrajectory {
+  userId?: number;
   userIdx: number;
   userLabel: string;
   borough: string;
@@ -24,6 +25,16 @@ export interface TrajectoryViewData {
   generatedAt?: string;
   source?: string;
   users: UserTrajectory[];
+}
+
+export interface PoiLookupEntry {
+  poiIdx: number;
+  poiName: string;
+  category: string;
+  emoji: string;
+  lat: number;
+  lon: number;
+  visitCount: number;
 }
 
 export const USER_COLORS = [
@@ -96,8 +107,9 @@ export function buildTrajectoryViewData(
       const weekday = first.weekday || "";
 
       return {
+        userId: first.user_id ? Number(first.user_id) : undefined,
         userIdx,
-        userLabel: `User #${userIdx}`,
+        userLabel: first.user_id ? `User ${first.user_id}` : `User #${userIdx}`,
         borough: `${deriveBorough(Number(first.latitude), Number(first.longitude))} · ${weekday || "Trajectory"}`,
         color: USER_COLORS[index % USER_COLORS.length],
         weekday: weekday || "",
@@ -133,6 +145,11 @@ export function pickRandomUsers(users: UserTrajectory[], min = 1, max = 3): User
   return shuffled.slice(0, Math.min(count, users.length));
 }
 
+export function pickRandomUser(users: UserTrajectory[]): UserTrajectory | null {
+  if (users.length === 0) return null;
+  return pickRandomUsers(users, 1, 1)[0] ?? null;
+}
+
 // 计算两点间球面距离 (km)，用于展示统计信息
 export function haversineKm(a: CheckIn, b: CheckIn): number {
   const R = 6371;
@@ -152,4 +169,30 @@ export function totalDistance(checkins: CheckIn[]): number {
     sum += haversineKm(checkins[i - 1], checkins[i]);
   }
   return sum;
+}
+
+export function buildPoiLookup(users: UserTrajectory[]): Map<number, PoiLookupEntry> {
+  const lookup = new Map<number, PoiLookupEntry>();
+
+  for (const user of users) {
+    for (const checkin of user.checkins) {
+      const existing = lookup.get(checkin.poiIdx);
+      if (existing) {
+        existing.visitCount += 1;
+        continue;
+      }
+
+      lookup.set(checkin.poiIdx, {
+        poiIdx: checkin.poiIdx,
+        poiName: checkin.poiName,
+        category: checkin.category,
+        emoji: checkin.emoji,
+        lat: checkin.lat,
+        lon: checkin.lon,
+        visitCount: 1,
+      });
+    }
+  }
+
+  return lookup;
 }

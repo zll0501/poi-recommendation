@@ -116,10 +116,10 @@ export default function TrajectoryMap({ users, revealCount, focusPoint, recommen
         const tailStart = Math.max(0, visible.length - 15);
         const tail = visible.slice(tailStart);
         const lastPoint = visible[visible.length - 1];
-        const nextCheckin = u.checkins[visibleCount] ?? null;
-        const hitRecommendation = nextCheckin
-          ? recommendation?.topK.find((item) => item.poiIdx === nextCheckin.poiIdx) ?? null
-          : null;
+        const showTarget = visibleCount >= u.checkins.length;
+        const targetCheckin = u.targetCheckin;
+        const hitRecommendation =
+          recommendation?.topK.find((item) => item.poiIdx === targetCheckin.poiIdx) ?? null;
 
         return (
           <Fragment key={u.userIdx}>
@@ -184,15 +184,15 @@ export default function TrajectoryMap({ users, revealCount, focusPoint, recommen
               );
             })}
 
-            {nextCheckin ? (
-              <Marker position={[nextCheckin.lat, nextCheckin.lon]} icon={groundTruthIcon()}>
+            {showTarget ? (
+              <Marker position={[targetCheckin.lat, targetCheckin.lon]} icon={groundTruthIcon()}>
                 <Tooltip direction="top" offset={[0, -10]} opacity={0.96} permanent>
                   <span className="ground-truth-tooltip">Ground Truth</span>
                 </Tooltip>
                 <Popup>
                   <div className="space-y-1 text-sm">
                     <div className="font-semibold text-emerald-700">
-                      {nextCheckin.emoji} {nextCheckin.poiName}
+                      {targetCheckin.emoji} {targetCheckin.poiName}
                     </div>
                     <div className="text-slate-500">真实下一 POI</div>
                   </div>

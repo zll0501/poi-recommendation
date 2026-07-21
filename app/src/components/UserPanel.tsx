@@ -1,23 +1,20 @@
 import { useMemo } from "react";
 import CategoryBarChart from "./CategoryBarChart";
 import InterestRadarChart from "./InterestRadarChart";
-import RecommendationList from "./RecommendationList";
 import UserTimeline from "./UserTimeline";
 import type { UserTrajectory } from "../data/trajectories";
-import type { UserRecommendationEntry } from "../data/recommendations";
 import { totalDistance } from "../data/trajectories";
 
 interface Props {
   user: UserTrajectory;
-  recommendation: UserRecommendationEntry;
   revealCount: number;
   onFocusPoint: (point: { lat: number; lon: number } | null) => void;
 }
 
-export default function UserPanel({ user, recommendation, revealCount, onFocusPoint }: Props) {
+export default function UserPanel({ user, revealCount, onFocusPoint }: Props) {
   const totalKm = totalDistance(user.checkins);
   const visibleCount = Math.max(1, Math.min(revealCount, user.checkins.length));
-  const nextCheckin = user.checkins[visibleCount] ?? null;
+  const targetCheckin = user.targetCheckin;
 
   const categoryStats = useMemo(() => {
     const counts = new Map<string, number>();
@@ -50,10 +47,6 @@ export default function UserPanel({ user, recommendation, revealCount, onFocusPo
   const topCategories = categoryStats.length === 0 ? ["无数据"] : categoryStats.map((item) => item.category);
   const topCounts = categoryStats.length === 0 ? [0] : categoryStats.map((item) => item.count);
 
-  const hitPoiIdx = nextCheckin
-    ? recommendation.topK.find((item) => item.poiIdx === nextCheckin.poiIdx)?.poiIdx ?? null
-    : null;
-
   return (
     <section className="rounded-[28px] border border-slate-200/80 bg-white/85 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -67,7 +60,7 @@ export default function UserPanel({ user, recommendation, revealCount, onFocusPo
           <MiniStat label="签到次数" value={String(user.checkins.length)} />
           <MiniStat label="总里程" value={`${totalKm.toFixed(1)} km`} />
           <MiniStat label="当前进度" value={`${visibleCount}/${user.checkins.length}`} />
-          <MiniStat label="样本日" value={user.weekday || "Unknown"} />
+          <MiniStat label="预测事件" value={String(user.predictionEventId)} />
         </div>
       </div>
 
@@ -76,14 +69,12 @@ export default function UserPanel({ user, recommendation, revealCount, onFocusPo
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-500">基础名片</p>
             <p className="mt-1 text-sm text-slate-500">
-              {nextCheckin ? `下一站：${nextCheckin.emoji} ${nextCheckin.poiName}` : "已播放到最后一站"}
+              真实下一站：{targetCheckin.emoji} {targetCheckin.poiName}
             </p>
           </div>
-          {nextCheckin ? (
-            <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
-              Ground Truth
-            </span>
-          ) : null}
+          <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
+            Ground Truth
+          </span>
         </div>
 
         <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1.1fr]">
@@ -104,14 +95,6 @@ export default function UserPanel({ user, recommendation, revealCount, onFocusPo
             />
           </div>
         </div>
-      </div>
-
-      <div className="mt-4">
-        <RecommendationList
-          recommendation={recommendation}
-          highlightPoiIdx={hitPoiIdx}
-          onPickPoi={(lat, lon) => onFocusPoint({ lat, lon })}
-        />
       </div>
 
       <div className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">

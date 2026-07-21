@@ -1,0 +1,32 @@
+data_config: configs/data.yaml
+
+model:
+  name: sasrec_time_category
+  # 与 sasrec_time.yaml 保持相同参数，仅额外启用类别嵌入。
+  max_seq_len: 50
+  hidden_size: 64
+  num_heads: 2
+  num_layers: 2
+  dropout: 0.2
+  use_time: true
+  use_category: true
+  # 0 是 PAD，1～24 对应一天中的 0～23 时。
+  num_time_tokens: 25
+
+training:
+  batch_size: 256
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  epochs: 50
+  patience: 10
+  seed: 42
+  device: auto
+
+evaluation:
+  top_k: [5, 10]
+  output_k: 10
+  mrr_k: 10
+
+output:
+  checkpoint: results/checkpoints/sasrec_time_category.pt
+  predictions: results/predictions/sasrec_time_category.csv

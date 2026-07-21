@@ -43,6 +43,38 @@ python -m src.analysis.data_profile --config configs/data.yaml
 pytest -q
 ```
 
+### 下载纽约逐小时天气旁路数据
+
+天气数据与现有推荐数据接口相互独立，不会改变签到划分或已有模型输入。运行：
+
+```powershell
+python -m src.download_weather --config configs/weather.yaml
+```
+
+脚本从 Open-Meteo Historical Weather API 下载 ERA5 逐小时数据，输出到
+`data/external/weather/nyc_hourly_weather.csv`，并生成包含请求参数、质量检查和
+SHA256 校验值的 `nyc_hourly_weather_metadata.json`。生成的数据文件默认不提交到 Git。
+
+随后按签到事件的 UTC 小时生成独立天气旁路：
+
+```powershell
+python -m src.match_weather --config configs/weather.yaml
+```
+
+输出 `data/processed/weather_features.csv` 和质量报告
+`data/processed/weather_matching_report.json`。匹配以 `event_id` 为唯一键，不会改写
+`train_encoded.csv`、`valid_encoded.csv` 或 `test_encoded.csv`；不使用天气的模型无需修改。
+
+在同一候选集和评价器下比较 Time Popular 与 Time + Weather Popular：
+
+```powershell
+python -m experiments.run_time_weather_popular \
+  --config configs/time_weather_popular.yaml
+```
+
+该实验只在训练集拟合“时间段+天气”热度，按“时间天气 → 时间 → 全局”顺序回退，
+并报告相对 Time Popular 的逐指标差值和分天气结果。
+
 预处理包含：
 
 - 统一字段类型、UTC 时间和 `America/New_York` 本地时间；
@@ -133,6 +165,16 @@ event_id,rank,poi_idx
 - `MRR@10`：真实POI排名倒数的平均值；
 - `Coverage`：全部目标中“训练已知用户且训练已知POI”的比例。
 
+运行时间感知热门基线（仅使用训练集内各时间段的POI频次，稀疏时间段按
+Global Popular补齐）：
+
+```powershell
+python -m experiments.run_time_popular --config configs/time_popular.yaml
+```
+
+结果写入 `results/metrics/time_popular.json`，同时包含 night、morning、
+afternoon、evening 四个时间段的独立测试结果。
+
 ```python
 from src.evaluator import evaluate_next_poi
 
@@ -149,3 +191,20 @@ metrics = evaluate_next_poi(
 评价器会自动排除冷启动目标，并拒绝缺失事件、重复POI、非法排名和候选集外POI，避免不同模型使用不一致的评价范围。
 
 统一参数保存在 `configs/evaluation.yaml`。由于下一POI任务包含真实的重复访问行为，默认不排除用户历史访问过的POI。
+
+## Global Popular基线
+
+Global Popular仅使用训练集签到次数对POI排序，访问次数相同时按 `poi_idx` 升序确定结果，不使用用户、验证集或测试集信息：
+
+```bash
+python -m experiments.run_popular --config configs/global_popular.yaml
+```
+
+本地生成但不提交Git的实验产物包括：
+
+```text
+results/predictions/global_popular_test.csv
+results/metrics/global_popular.json
+results/metrics/global_popular_ranking.csv
+results/checkpoints/global_popular.json
+```

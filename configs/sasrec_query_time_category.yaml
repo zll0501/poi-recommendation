@@ -1,0 +1,33 @@
+data_config: configs/data.yaml
+
+model:
+  name: sasrec_query_time_category
+  max_seq_len: 50
+  hidden_size: 64
+  num_heads: 2
+  num_layers: 2
+  dropout: 0.2
+  use_history_time: false
+  use_query_time: true
+  use_category: true
+  num_time_tokens: 25
+  num_query_weekday_tokens: 8
+  num_query_time_slot_tokens: 5
+
+training:
+  batch_size: 256
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  epochs: 50
+  patience: 10
+  seed: 42
+  device: auto
+
+evaluation:
+  top_k: [5, 10]
+  output_k: 10
+  mrr_k: 10
+
+output:
+  checkpoint: results/checkpoints/sasrec_query_time_category.pt
+  predictions: results/predictions/sasrec_query_time_category.csv

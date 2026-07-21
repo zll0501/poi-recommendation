@@ -1,0 +1,16 @@
+model:
+  name: TimePopular
+  top_k: 10
+  fit_on: train
+  time_column: time_slot
+  fallback: global_popular
+  tie_break: poi_idx_ascending
+
+data_config: configs/data.yaml
+evaluation_config: configs/evaluation.yaml
+
+output:
+  predictions: results/predictions/time_popular_test.csv
+  metrics: results/metrics/time_popular.json
+  ranking: results/metrics/time_popular_rankings.csv
+  model: results/checkpoints/time_popular.json

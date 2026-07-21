@@ -22,6 +22,9 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+data/external/weather/*.csv
+data/external/weather/*.json
+!data/external/weather/.gitkeep
 
 # Model checkpoints
 results/checkpoints/*
@@ -39,6 +42,18 @@ results/figures/*
 !results/figures/.gitkeep
 results/logs/*
 !results/logs/.gitkeep
+results/history/*
+!results/history/.gitkeep
+results/attention_analysis/*
+!results/attention_analysis/.gitkeep
+results/ablation_analysis/*
+!results/ablation_analysis/.gitkeep
+results/sasrec/*
+!results/sasrec/.gitkeep
+results/sasrec_time/*
+!results/sasrec_time/.gitkeep
+results/sasrec_time_category/*
+!results/sasrec_time_category/.gitkeep
 
 # Temporary files
 *.tmp
